@@ -1,26 +1,20 @@
 // routes/abstractRoutes.js
 const express = require("express");
 const multer = require("multer");
-const path = require("path");
+const { v2: cloudinary } = require("cloudinary");
+const streamifier = require("streamifier");
 const Abstract = require("../models/abstractModel.js");
-
 const router = express.Router();
-const fs = require("fs");
-const uploadsDir = path.join(__dirname, "../uploads/abstracts");
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
-// File upload setup using multer
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, "uploads/abstracts/");
-  },
-  filename: function (req, file, cb) {
-    const ext = path.extname(file.originalname);
-    cb(null, `${Date.now()}-${file.fieldname}${ext}`);
-  },
+
+// Cloudinary config
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
+// Multer memory storage (for streaming to Cloudinary)
+const storage = multer.memoryStorage();
 const upload = multer({
   storage,
   limits: { fileSize: 10 * 1024 * 1024 }, // Max 10MB
@@ -50,6 +44,28 @@ router.post("/submission", upload.single("abstractFile"), async (req, res) => {
       return res.status(400).json({ error: "File is required" });
     }
 
+    // Upload file to Cloudinary
+    const streamUpload = () => {
+      return new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          {
+            folder: "gimsoc/abstracts",
+            resource_type: "raw",
+          },
+          (error, result) => {
+            if (result) {
+              resolve(result);
+            } else {
+              reject(error);
+            }
+          }
+        );
+        streamifier.createReadStream(req.file.buffer).pipe(stream);
+      });
+    };
+
+    const result = await streamUpload();
+
     const newAbstract = new Abstract({
       fullName,
       email,
@@ -61,7 +77,7 @@ router.post("/submission", upload.single("abstractFile"), async (req, res) => {
       authors,
       presentingAuthor,
       isPresentingAuthorSame,
-      abstractFileURL: `/uploads/abstracts/${req.file.filename}`,
+      abstractFileURL: result.secure_url,
       originalityConsent,
       disqualificationConsent,
       permissionConsent,
