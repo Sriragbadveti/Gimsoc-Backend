@@ -1,85 +1,66 @@
 const mongoose = require("mongoose");
 
-const attendeeSchema = new mongoose.Schema({
-  fullName: String,
-  email: String,
-  whatsapp: String,
-  university: String,
-  semester: String,
-  examPrep: String,
-  examOther: String,
-  headshotUrl: String,
-  foodPreference: String,
-  dietaryRestrictions: String,
-  accessibilityNeeds: String,
-  isGimsocMember: Boolean,
-  membershipCode: String,
-  infoAccurate: Boolean,
-  mediaConsent: Boolean,
-  policies: Boolean,
-  emailConsent: Boolean,
-  whatsappConsent: Boolean,
-});
-
 const userTicketSchema = new mongoose.Schema({
-  ticketType: {
+  // Required for classification
+  ticketCategory: {
     type: String,
-    enum: [
-      "Doctor",
-      "Individual",
-      "Group",
-      "TSU",
-      "TSU All Inclusive",
-      "All Inclusive",
-      "International",
-    ],
-    
+    enum: ["Standard", "All-Inclusive", "Doctor", "International", "Executive & Subcom"],
+    required: true,
   },
-  email: { type: String,required: function () {
-    return this.ticketType !== "Group"; // Only required if not group
-  }, },
-  whatsapp: { type: String },
-  password:{type:String },
-  workshopPackage: String,
-  headshotUrl: String,
-  foodPreference: String,
-  dietaryRestrictions: String,
-  accessibilityNeeds: String,
-  paymentMethod: String,
-  paymentProofUrl: String,
-  discountConfirmation: Boolean,
-  infoAccurate: Boolean,
-  mediaConsent: Boolean,
-  policies: Boolean,
-  emailConsent: Boolean,
-  whatsappConsent: Boolean,
+  subType: {
+    type: String,
+    enum: ["GIMSOC", "Non-GIMSOC", "TSU", "3-Day", "7-Day", "Standard", "All-Inclusive"],
+  },
 
-  // Doctor / Individual / International etc:
+  // Common User Info
   fullName: String,
+  email: { type: String, required: true },
+  whatsapp: String,
+  password: String, // optional, if needed
+
+  // Medical / Academic
+  universityName: String,
+  yearOfStudy: String,
+  semester: String,
   medicalQualification: String,
   specialty: String,
   currentWorkplace: String,
   countryOfPractice: String,
 
-  // TSU:
-  isTsuStudent: Boolean,
-  tsuEmail: String,
-  semester: String,
-
-  // International:
+  // International
   nationality: String,
   countryOfResidence: String,
   passportNumber: String,
   needsVisaSupport: String,
-  universityName: String,
-  yearOfStudy: String,
   emergencyContactName: String,
   emergencyContactRelationship: String,
   emergencyContactPhone: String,
-  studentIdProofUrl: String,
 
-  // Group Tickets
-  attendees: [attendeeSchema],
+  // Uploads
+  headshotUrl: String,
+  studentIdProofUrl: String,
+  paymentProofUrl: String,
+
+  // Preferences & Consent
+  foodPreference: String,
+  dietaryRestrictions: String,
+  accessibilityNeeds: String,
+
+  isTsuStudent: Boolean,
+  tsuEmail: String,
+  isGimsocMember: Boolean,
+  membershipCode: String,
+
+  infoAccurate: Boolean,
+  mediaConsent: Boolean,
+  policies: Boolean,
+  emailConsent: Boolean,
+  whatsappConsent: Boolean,
+
+  // Payment
+  paymentMethod: String,
+  discountConfirmation: Boolean,
+  workshopPackage: String,
 
   createdAt: {
     type: Date,

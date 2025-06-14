@@ -12,7 +12,7 @@ app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 app.use(
   cors({
-    origin:"https://www.medcongimsoc.com",
+    origin:"http://localhost:5173",
     credentials: true,
     exposedHeaders: ["set-cookie"],
   })
