@@ -5,7 +5,8 @@ const mongoose = require("mongoose");
 const cookieParser = require("cookie-parser");
 const app = express();
 app.use(express.json());
-app.use("/uploads", express.static("uploads"));
+// index.js ya server.js me
+app.use("/uploads", express.static(path.join(__dirname, "uploads")))
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 app.use(
