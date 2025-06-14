@@ -25,16 +25,16 @@ const storage = multer.diskStorage({
 
 const upload = multer({ storage });
 
+// Utility: Convert string-like booleans to actual Boolean values
+const toBool = (val) => val === "Yes" || val === "true" || val === true;
+
 // Route to handle ticket submissions
 router.post("/submit", upload.any(), async (req, res) => {
   try {
-    // Collect uploaded files
     const filesMap = {};
     req.files.forEach(file => {
       filesMap[file.fieldname] = file.filename;
     });
-    const existingTicket = await UserTicket.findOne({ email: req.body.email });
-
 
     const {
       ticketType,
@@ -82,18 +82,18 @@ router.post("/submit", upload.any(), async (req, res) => {
       dietaryRestrictions,
       accessibilityNeeds,
       paymentMethod,
-      discountConfirmation,
-      infoAccurate: infoAccurate === "true",
-      mediaConsent: mediaConsent === "true",
-      policies: policies === "true",
-      emailConsent: emailConsent === "true",
-      whatsappConsent: whatsappConsent === "true",
+      discountConfirmation: toBool(discountConfirmation),
+      infoAccurate: toBool(infoAccurate),
+      mediaConsent: toBool(mediaConsent),
+      policies: toBool(policies),
+      emailConsent: toBool(emailConsent),
+      whatsappConsent: toBool(whatsappConsent),
       fullName,
       medicalQualification,
       specialty,
       currentWorkplace,
       countryOfPractice,
-      isTsuStudent: isTsuStudent === "true",
+      isTsuStudent: toBool(isTsuStudent),
       tsuEmail,
       semester,
       nationality,
@@ -110,17 +110,18 @@ router.post("/submit", upload.any(), async (req, res) => {
       studentIdProofUrl: filesMap.studentIdProof || null,
     });
 
-    // If group ticket, parse attendees and assign headshots
+    // 🧠 Handle group ticket attendees
     if (ticketType === "Group" && attendees) {
       const parsedAttendees = JSON.parse(attendees);
       newTicket.attendees = parsedAttendees.map((att, index) => ({
         ...att,
+        isGimsocMember: toBool(att.isGimsocMember),
+        mediaConsent: toBool(att.mediaConsent),
+        infoAccurate: toBool(att.infoAccurate),
+        policies: toBool(att.policies),
+        emailConsent: toBool(att.emailConsent),
+        whatsappConsent: toBool(att.whatsappConsent),
         headshotUrl: filesMap[`headshot-${index}`] || null,
-        infoAccurate: att.infoAccurate === "true",
-        mediaConsent: att.mediaConsent === "true",
-        policies: att.policies === "true",
-        emailConsent: att.emailConsent === "true",
-        whatsappConsent: att.whatsappConsent === "true",
       }));
     }
 
