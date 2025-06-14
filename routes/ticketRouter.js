@@ -34,9 +34,7 @@ router.post("/submit", upload.any(), async (req, res) => {
       filesMap[file.fieldname] = file.filename;
     });
     const existingTicket = await UserTicket.findOne({ email: req.body.email });
-if (existingTicket) {
-  return res.status(409).json({ message: "You have already registered." });
-}
+
 
     const {
       ticketType,
