@@ -4,7 +4,7 @@ const User = require("../models/userModel.js");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const secret = "secret";
-
+const authMiddleware = require("../middlewares/authMiddleware.js")
 // SIGNUP ROUTE
 router.post("/signup", async (req, res) => {
   try {
@@ -93,5 +93,9 @@ router.post("/logout", (req, res) => {
     return res.status(500).send({ message: "Internal server error" });
   }
 });
+
+
+
+
 
 module.exports = router;

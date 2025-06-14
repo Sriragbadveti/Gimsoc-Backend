@@ -42,4 +42,19 @@ router.get("/getprofileinfo", authMiddleware, async (req, res) => {
   }
 });
 
+router.get("/check-dashboard-access", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const ticket = await UserTicket.findOne({ userId });
+
+    if (!ticket) {
+      return res.status(403).json({ message: "No ticket found. Access denied." });
+    }
+
+    res.status(200).json({ access: true });
+  } catch (err) {
+    res.status(500).json({ message: "Internal Server Error" });
+  }
+});
+
 module.exports = router;
