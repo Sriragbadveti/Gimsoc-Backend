@@ -4,6 +4,7 @@ const cors = require("cors");
 const mongoose = require("mongoose");
 const cookieParser = require("cookie-parser");
 const app = express();
+const path = require("path");
 app.use(express.json());
 // index.js ya server.js me
 app.use("/uploads", express.static(path.join(__dirname, "uploads")))
