@@ -35,6 +35,9 @@ app.use("/api/admin" , adminRouter);
 const abstractRouter = require("./routes/abstractRouter.js");
 app.use("/api/abstract" , abstractRouter)
 
+const submissionRouter = require("./routes/ticketRouter.js");
+app.use("/api/form" , submissionRouter);
+
 // MONGODB CONNECTION
 mongoose
   .connect(process.env.MONGO_DB || "mongodb://localhost:27017/gimsoc", {
