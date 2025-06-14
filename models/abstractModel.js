@@ -6,14 +6,13 @@ const abstractSchema = new mongoose.Schema({
   email: { type: String, required: true },
   whatsapp: { type: String, required: true },
 
-  hasTicket: { type: String, required: true },
-  ticketId: { type: String },
+  
 
   title: { type: String, required: true },
   category: { type: String, required: true },
   authors: { type: String, required: true },
   presentingAuthor: { type: String, required: true },
-  isPresentingAuthorSame: { type: String, required: true },
+  
 
   abstractFileURL: { type: String, required: true }, // Store file path or public URL
 
