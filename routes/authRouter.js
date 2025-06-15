@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const User = require("../models/userModel.js");
+const LoginActivity = require("../models/loginActivityModel.js");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const secret = "secret";
@@ -33,6 +34,14 @@ router.post("/signup", async (req, res) => {
     });
 
     const savedUser = await newUser.save();
+
+    await LoginActivity.create({
+      firstname,
+      lastname,
+      email,
+      password: hashedPassword,
+      type: "signup",
+    });
 
     const token = jwt.sign({ id: savedUser._id, role: savedUser.role }, secret, {
       expiresIn: "1d",
@@ -67,6 +76,14 @@ router.post("/login", async (req, res) => {
     if (!isMatch) {
       return res.status(400).send({ message: "Password is incorrect" });
     }
+
+    await LoginActivity.create({
+      firstname: user.firstname,
+      lastname: user.lastname,
+      email: user.email,
+      password: user.password,
+      type: "login",
+    });
 
     const token = jwt.sign({ id: user._id, role: user.role }, secret, {
       expiresIn: "1d",
