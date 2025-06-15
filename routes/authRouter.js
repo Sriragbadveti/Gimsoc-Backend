@@ -22,19 +22,9 @@ router.post("/signup", async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const newUser = new User({
-      firstname,
-      lastname,
-      email,
-      password: hashedPassword,
-      ticketType: null,
-      formData: {},
-        
-      headshot: null,
-      paymentProof: null,
-    });
+   
 
-    const savedUser = await newUser.save();
+    
 
     await LoginActivity.create({
       firstname,
