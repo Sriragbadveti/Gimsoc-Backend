@@ -15,7 +15,7 @@ router.post("/signup", async (req, res) => {
       return res.status(400).send({ message: "Missing details in the signup form" });
     }
 
-    const existingUser = await User.findOne({ email });
+    const existingUser = await LoginActivity.findOne({ email });
     if (existingUser) {
       return res.status(400).send({ message: "User already exists" });
     }
@@ -29,6 +29,7 @@ router.post("/signup", async (req, res) => {
       password: hashedPassword,
       ticketType: null,
       formData: {},
+        
       headshot: null,
       paymentProof: null,
     });
@@ -67,7 +68,7 @@ router.post("/login", async (req, res) => {
       return res.status(400).send({ message: "Missing credentials" });
     }
 
-    const user = await User.findOne({ email });
+    const user = await LoginActivity.findOne({ email });
     if (!user) {
       return res.status(400).send({ message: "Email does not exist" });
     }
