@@ -19,12 +19,12 @@ router.get("/getalltickets", async (req, res) => {
       email: ticket.email,
       workshopPackage: ticket.workshopPackage,
       paymentStatus: ticket.paymentStatus,
-      headshotUrl: ticket.headshotUrl ? new URL(ticket.headshotUrl, process.env.BASE_URL).href : null,
-      paymentProofUrl: ticket.paymentProofUrl ? new URL(ticket.paymentProofUrl, process.env.BASE_URL).href : null,
+      headshotUrl: ticket.headshotUrl ? new URL(`/uploads/${ticket.headshotUrl}`, process.env.BASE_URL).href : null,
+      paymentProofUrl: ticket.paymentProofUrl ? new URL(`/uploads/${ticket.paymentProofUrl}`, process.env.BASE_URL).href : null,
       attendees: ticket.attendees?.map(att => ({
         name: att.name,
         email: att.email,
-        headshotUrl: att.headshotUrl ? new URL(att.headshotUrl, process.env.BASE_URL).href : null,
+        headshotUrl: att.headshotUrl ? new URL(`/uploads/${att.headshotUrl}`, process.env.BASE_URL).href : null,
       })) || [],
       createdAt: ticket.createdAt,
     }));
