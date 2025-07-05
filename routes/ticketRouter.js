@@ -31,13 +31,25 @@ const toBool = (val) => val === "Yes" || val === "true" || val === true;
 // Route to handle ticket submissions
 router.post("/submit", upload.any(), async (req, res) => {
   try {
+    console.log("🎫 Ticket submission received:", {
+      ticketType: req.body.ticketType,
+      ticketCategory: req.body.ticketCategory,
+      subType: req.body.subType,
+      fullName: req.body.fullName,
+      email: req.body.email
+    });
+    
     const filesMap = {};
     req.files.forEach(file => {
       filesMap[file.fieldname] = file.filename;
     });
+    
+    console.log("📁 Files uploaded:", filesMap);
 
     const {
       ticketType,
+      ticketCategory,
+      subType,
       email,
       whatsapp,
       password,
@@ -72,8 +84,26 @@ router.post("/submit", upload.any(), async (req, res) => {
       attendees,
     } = req.body;
 
+    // Handle different ticket types
+    let ticketCategoryValue = ticketCategory;
+    let subTypeValue = subType;
+    
+    // For Executive tickets, map the ticketType to the correct category
+    if (ticketType === "Executive") {
+      ticketCategoryValue = "Executive & Subcom";
+      subTypeValue = subType || "Standard"; // Default to Standard if not specified
+    }
+    
+    console.log("🔧 Processing ticket:", {
+      originalTicketType: ticketType,
+      mappedTicketCategory: ticketCategoryValue,
+      mappedSubType: subTypeValue
+    });
+    
     const newTicket = new UserTicket({
       ticketType,
+      ticketCategory: ticketCategoryValue,
+      subType: subTypeValue,
       email,
       whatsapp,
       password,
@@ -125,10 +155,22 @@ router.post("/submit", upload.any(), async (req, res) => {
       }));
     }
 
+    console.log("💾 Saving ticket to database...");
     await newTicket.save();
+    console.log("✅ Ticket saved successfully with ID:", newTicket._id);
     res.status(201).json({ message: "Ticket submitted successfully", id: newTicket._id });
   } catch (error) {
     console.error("❌ Error in ticket submission:", error);
+    
+    // Handle validation errors specifically
+    if (error.name === 'ValidationError') {
+      console.error("Validation errors:", error.errors);
+      return res.status(400).json({ 
+        message: "Validation error", 
+        errors: Object.keys(error.errors).map(key => `${key}: ${error.errors[key].message}`)
+      });
+    }
+    
     res.status(500).json({ message: "Server error while submitting ticket" });
   }
 });

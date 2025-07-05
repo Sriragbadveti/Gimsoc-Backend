@@ -25,12 +25,12 @@ router.get("/getalltickets", async (req, res) => {
       headshotUrl: ticket.headshotUrl
         ? ticket.headshotUrl.startsWith("http") 
           ? ticket.headshotUrl 
-          : `${process.env.BASE_URL || "https://gimsoc-backend.onrender.com"}/uploads/${ticket.headshotUrl.replace(/^\/?uploads\//, "")}`
+          : `${process.env.BASE_URL || "https://gimsoc-backend.onrender.com"}/uploads/${ticket.headshotUrl}`
         : null,
       paymentProofUrl: ticket.paymentProofUrl
         ? ticket.paymentProofUrl.startsWith("http")
           ? ticket.paymentProofUrl
-          : `${process.env.BASE_URL || "https://gimsoc-backend.onrender.com"}/uploads/${ticket.paymentProofUrl.replace(/^\/?uploads\//, "")}`
+          : `${process.env.BASE_URL || "https://gimsoc-backend.onrender.com"}/uploads/${ticket.paymentProofUrl}`
         : null,
       attendees: ticket.attendees?.map(att => ({
         name: att.name,
@@ -38,7 +38,7 @@ router.get("/getalltickets", async (req, res) => {
         headshotUrl: att.headshotUrl
           ? att.headshotUrl.startsWith("http")
             ? att.headshotUrl
-            : `${process.env.BASE_URL || "https://gimsoc-backend.onrender.com"}/uploads/${att.headshotUrl.replace(/^\/?uploads\//, "")}`
+            : `${process.env.BASE_URL || "https://gimsoc-backend.onrender.com"}/uploads/${att.headshotUrl}`
           : null,
       })) || [],
       createdAt: ticket.createdAt,

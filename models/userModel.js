@@ -5,7 +5,7 @@ const userTicketSchema = new mongoose.Schema({
   ticketCategory: {
     type: String,
     enum: ["Standard", "All-Inclusive", "Doctor", "International", "Executive & Subcom"],
-    
+    required: true,
   },
   subType: {
     type: String,
