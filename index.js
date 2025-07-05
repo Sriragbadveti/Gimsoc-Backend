@@ -10,13 +10,16 @@ app.use(express.json());
 app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
   setHeaders: (res, path) => {
     res.setHeader("Access-Control-Allow-Origin", "https://www.medcongimsoc.com");
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
   }
 }));
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
 app.use(
   cors({
-    origin:"https://www.medcongimsoc.com",
+    origin: ["https://www.medcongimsoc.com", "http://localhost:5173", "http://localhost:3000"],
     credentials: true,
     exposedHeaders: ["set-cookie"],
   })
