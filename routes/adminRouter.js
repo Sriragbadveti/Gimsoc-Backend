@@ -95,6 +95,29 @@ router.get("/files", async (req, res) => {
   }
 });
 
+// Test endpoint to check file URLs in database
+router.get("/file-urls", async (req, res) => {
+  try {
+    const tickets = await UserTicket.find({}, { headshotUrl: 1, paymentProofUrl: 1, fullName: 1 }).limit(5);
+    const abstracts = await Abstract.find({}, { abstractFileURL: 1, title: 1 }).limit(5);
+    
+    res.json({ 
+      tickets: tickets.map(t => ({ 
+        fullName: t.fullName, 
+        headshotUrl: t.headshotUrl, 
+        paymentProofUrl: t.paymentProofUrl 
+      })),
+      abstracts: abstracts.map(a => ({ 
+        title: a.title, 
+        abstractFileURL: a.abstractFileURL 
+      }))
+    });
+  } catch (error) {
+    console.error("Error fetching file URLs:", error);
+    res.status(500).json({ message: "Failed to fetch file URLs" });
+  }
+});
+
 router.patch("/approveticket/:ticketId",  async (req, res) => {
   const { ticketId } = req.params;
   const { paymentStatus } = req.body;
