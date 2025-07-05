@@ -93,6 +93,16 @@ router.post("/submit", upload.any(), async (req, res) => {
       ticketCategoryValue = "Executive & Subcom";
       subTypeValue = subType || "Standard"; // Default to Standard if not specified
     }
+    // For Doctor tickets, map the ticketType to the correct category
+    else if (ticketType === "Doctor") {
+      ticketCategoryValue = "Doctor";
+      subTypeValue = "Standard"; // Default for Doctor tickets
+    }
+    // For Group tickets, map the ticketType to the correct category
+    else if (ticketType === "Group") {
+      ticketCategoryValue = "Standard"; // Group tickets are Standard category
+      subTypeValue = "Group"; // Special subtype for group tickets
+    }
     
     console.log("🔧 Processing ticket:", {
       originalTicketType: ticketType,
