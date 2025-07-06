@@ -22,24 +22,12 @@ router.get("/getalltickets", async (req, res) => {
       email: ticket.email,
       workshopPackage: ticket.workshopPackage,
       paymentStatus: ticket.paymentStatus,
-      headshotUrl: ticket.headshotUrl
-        ? ticket.headshotUrl.startsWith("http") 
-          ? ticket.headshotUrl 
-          : `${process.env.BASE_URL || "https://gimsoc-backend.onrender.com"}/uploads/${ticket.headshotUrl}`
-        : null,
-      paymentProofUrl: ticket.paymentProofUrl
-        ? ticket.paymentProofUrl.startsWith("http")
-          ? ticket.paymentProofUrl
-          : `${process.env.BASE_URL || "https://gimsoc-backend.onrender.com"}/uploads/${ticket.paymentProofUrl}`
-        : null,
+      headshotUrl: ticket.headshotUrl || null,
+      paymentProofUrl: ticket.paymentProofUrl || null,
       attendees: ticket.attendees?.map(att => ({
         name: att.name,
         email: att.email,
-        headshotUrl: att.headshotUrl
-          ? att.headshotUrl.startsWith("http")
-            ? att.headshotUrl
-            : `${process.env.BASE_URL || "https://gimsoc-backend.onrender.com"}/uploads/${att.headshotUrl}`
-          : null,
+        headshotUrl: att.headshotUrl || null,
       })) || [],
       createdAt: ticket.createdAt,
     }));
@@ -51,49 +39,7 @@ router.get("/getalltickets", async (req, res) => {
   }
 });
 
-// NEW: Download file endpoint
-router.get("/download/:filename", async (req, res) => {
-  try {
-    const { filename } = req.params;
-    console.log("Download request for filename:", filename);
-    
-    const filePath = path.join(__dirname, "../uploads", filename);
-    console.log("Full file path:", filePath);
-    
-    // Check if file exists
-    if (!fs.existsSync(filePath)) {
-      console.log("File not found at path:", filePath);
-      return res.status(404).json({ message: "File not found" });
-    }
-    
-    console.log("File found, starting download...");
-    
-    // Set headers for file download
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.setHeader('Content-Type', 'application/octet-stream');
-    res.setHeader('Access-Control-Allow-Origin', req.headers.origin || 'https://www.medcongimsoc.com');
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-    
-    // Stream the file
-    const fileStream = fs.createReadStream(filePath);
-    fileStream.pipe(res);
-  } catch (error) {
-    console.error("Error downloading file:", error);
-    res.status(500).json({ message: "Failed to download file" });
-  }
-});
-
-// Test endpoint to list available files
-router.get("/files", async (req, res) => {
-  try {
-    const uploadsDir = path.join(__dirname, "../uploads");
-    const files = fs.readdirSync(uploadsDir);
-    res.json({ files });
-  } catch (error) {
-    console.error("Error listing files:", error);
-    res.status(500).json({ message: "Failed to list files" });
-  }
-});
+// Note: Files are now stored in Cloudinary, not local storage
 
 // Test endpoint to check file URLs in database
 router.get("/file-urls", async (req, res) => {

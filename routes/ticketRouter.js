@@ -2,27 +2,21 @@ const express = require("express");
 const multer = require("multer");
 const fs = require("fs");
 const path = require("path");
+const { v2: cloudinary } = require("cloudinary");
+const streamifier = require("streamifier");
 const UserTicket = require("../models/userModel");
 
 const router = express.Router();
 
-// Ensure uploads folder exists
-const uploadsDir = path.join(__dirname, "../uploads");
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir);
-}
-
-// Multer setup
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, uploadsDir);
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, file.fieldname + "-" + uniqueSuffix + path.extname(file.originalname));
-  },
+// Cloudinary config
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
+// Multer setup for Cloudinary uploads
+const storage = multer.memoryStorage();
 const upload = multer({ 
   storage,
   limits: { 
@@ -42,16 +36,46 @@ const upload = multer({
 // Utility: Convert string-like booleans to actual Boolean values
 const toBool = (val) => val === "Yes" || val === "true" || val === true;
 
+// Utility: Upload file to Cloudinary
+const uploadToCloudinary = (file, folder) => {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        folder: `gimsoc/${folder}`,
+        resource_type: "auto",
+      },
+      (error, result) => {
+        if (result) {
+          resolve(result.secure_url);
+        } else {
+          reject(error);
+        }
+      }
+    );
+    streamifier.createReadStream(file.buffer).pipe(stream);
+  });
+};
+
+// Test endpoint for connectivity
+router.get("/test", (req, res) => {
+  res.json({ message: "Ticket router is working", timestamp: new Date().toISOString() });
+});
+
 // Route to handle ticket submissions
 router.post("/submit", upload.any(), async (req, res) => {
+  console.log("🚀 Ticket submission started at:", new Date().toISOString());
+  
   // Handle multer errors
   if (req.fileValidationError) {
+    console.log("❌ File validation error:", req.fileValidationError);
     return res.status(400).json({ message: req.fileValidationError });
   }
   
   if (req.fileTooLarge) {
+    console.log("❌ File too large");
     return res.status(400).json({ message: "File too large. Maximum size is 10MB." });
   }
+  
   try {
     console.log("🎫 Ticket submission received:", {
       ticketType: req.body.ticketType,
@@ -70,15 +94,24 @@ router.post("/submit", upload.any(), async (req, res) => {
     
     const filesMap = {};
     if (req.files && req.files.length > 0) {
-      req.files.forEach(file => {
+      console.log("📁 Uploading files to Cloudinary...");
+      for (const file of req.files) {
         console.log("📁 Processing file:", {
           fieldname: file.fieldname,
           originalname: file.originalname,
           mimetype: file.mimetype,
           size: file.size
         });
-        filesMap[file.fieldname] = file.filename;
-      });
+        
+        try {
+          const cloudinaryUrl = await uploadToCloudinary(file, "tickets");
+          filesMap[file.fieldname] = cloudinaryUrl;
+          console.log(`✅ File ${file.fieldname} uploaded to Cloudinary:`, cloudinaryUrl);
+        } catch (uploadError) {
+          console.error(`❌ Failed to upload ${file.fieldname}:`, uploadError);
+          throw new Error(`Failed to upload ${file.fieldname}: ${uploadError.message}`);
+        }
+      }
     }
     
     console.log("📁 Files uploaded:", filesMap);
@@ -212,6 +245,14 @@ router.post("/submit", upload.any(), async (req, res) => {
     }
 
     console.log("💾 Saving ticket to database...");
+    console.log("📊 Ticket data to save:", {
+      ticketType: newTicket.ticketType,
+      ticketCategory: newTicket.ticketCategory,
+      subType: newTicket.subType,
+      email: newTicket.email,
+      fullName: newTicket.fullName,
+      hasFiles: !!newTicket.headshotUrl || !!newTicket.paymentProofUrl
+    });
     
     // Add timeout to prevent hanging
     const savePromise = newTicket.save();
@@ -221,7 +262,9 @@ router.post("/submit", upload.any(), async (req, res) => {
     
     await Promise.race([savePromise, timeoutPromise]);
     console.log("✅ Ticket saved successfully with ID:", newTicket._id);
+    console.log("🎉 Sending success response...");
     res.status(201).json({ message: "Ticket submitted successfully", id: newTicket._id });
+    console.log("✅ Response sent successfully");
   } catch (error) {
     console.error("❌ Error in ticket submission:", error);
     
