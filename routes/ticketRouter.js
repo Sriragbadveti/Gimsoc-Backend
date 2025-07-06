@@ -37,10 +37,13 @@ router.post("/submit", upload.any(), async (req, res) => {
       subType: req.body.subType,
       fullName: req.body.fullName,
       email: req.body.email,
-      workshopPackage: req.body.workshopPackage
+      workshopPackage: req.body.workshopPackage,
+      isGimsocMember: req.body.isGimsocMember,
+      isTsuStudent: req.body.isTsuStudent
     });
     
     console.log("📋 Full request body:", req.body);
+    console.log("📋 Request headers:", req.headers);
     
     const filesMap = {};
     req.files.forEach(file => {
@@ -73,6 +76,8 @@ router.post("/submit", upload.any(), async (req, res) => {
       currentWorkplace,
       countryOfPractice,
       isTsuStudent,
+      isGimsocMember,
+      membershipCode,
       tsuEmail,
       semester,
       nationality,
@@ -106,6 +111,11 @@ router.post("/submit", upload.any(), async (req, res) => {
       ticketCategoryValue = "Standard"; // Group tickets are Standard category
       subTypeValue = "Group"; // Special subtype for group tickets
     }
+    // For Standard tickets (like Standard+4), keep as is
+    else if (ticketType === "Standard") {
+      ticketCategoryValue = "Standard";
+      subTypeValue = subType; // Use the subType as provided
+    }
     
     console.log("🔧 Processing ticket:", {
       originalTicketType: ticketType,
@@ -137,6 +147,8 @@ router.post("/submit", upload.any(), async (req, res) => {
       currentWorkplace,
       countryOfPractice,
       isTsuStudent: toBool(isTsuStudent),
+      isGimsocMember: toBool(isGimsocMember),
+      membershipCode: membershipCode || null,
       tsuEmail,
       semester,
       nationality,
