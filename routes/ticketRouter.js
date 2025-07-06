@@ -23,13 +23,35 @@ const storage = multer.diskStorage({
   },
 });
 
-const upload = multer({ storage });
+const upload = multer({ 
+  storage,
+  limits: { 
+    fileSize: 10 * 1024 * 1024, // 10MB limit
+    files: 5 // Maximum 5 files
+  },
+  fileFilter: (req, file, cb) => {
+    // Allow images and PDFs
+    if (file.mimetype.startsWith('image/') || file.mimetype === 'application/pdf') {
+      cb(null, true);
+    } else {
+      cb(new Error('Only images and PDFs are allowed'), false);
+    }
+  }
+});
 
 // Utility: Convert string-like booleans to actual Boolean values
 const toBool = (val) => val === "Yes" || val === "true" || val === true;
 
 // Route to handle ticket submissions
 router.post("/submit", upload.any(), async (req, res) => {
+  // Handle multer errors
+  if (req.fileValidationError) {
+    return res.status(400).json({ message: req.fileValidationError });
+  }
+  
+  if (req.fileTooLarge) {
+    return res.status(400).json({ message: "File too large. Maximum size is 10MB." });
+  }
   try {
     console.log("🎫 Ticket submission received:", {
       ticketType: req.body.ticketType,
@@ -44,11 +66,20 @@ router.post("/submit", upload.any(), async (req, res) => {
     
     console.log("📋 Full request body:", req.body);
     console.log("📋 Request headers:", req.headers);
+    console.log("📁 Number of files received:", req.files ? req.files.length : 0);
     
     const filesMap = {};
-    req.files.forEach(file => {
-      filesMap[file.fieldname] = file.filename;
-    });
+    if (req.files && req.files.length > 0) {
+      req.files.forEach(file => {
+        console.log("📁 Processing file:", {
+          fieldname: file.fieldname,
+          originalname: file.originalname,
+          mimetype: file.mimetype,
+          size: file.size
+        });
+        filesMap[file.fieldname] = file.filename;
+      });
+    }
     
     console.log("📁 Files uploaded:", filesMap);
 
@@ -181,19 +212,39 @@ router.post("/submit", upload.any(), async (req, res) => {
     }
 
     console.log("💾 Saving ticket to database...");
-    await newTicket.save();
+    
+    // Add timeout to prevent hanging
+    const savePromise = newTicket.save();
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Database save timeout')), 10000)
+    );
+    
+    await Promise.race([savePromise, timeoutPromise]);
     console.log("✅ Ticket saved successfully with ID:", newTicket._id);
     res.status(201).json({ message: "Ticket submitted successfully", id: newTicket._id });
   } catch (error) {
     console.error("❌ Error in ticket submission:", error);
     
-    // Handle validation errors specifically
+    // Handle specific error types
     if (error.name === 'ValidationError') {
       console.error("Validation errors:", error.errors);
       return res.status(400).json({ 
         message: "Validation error", 
         errors: Object.keys(error.errors).map(key => `${key}: ${error.errors[key].message}`)
       });
+    }
+    
+    if (error.message === 'Database save timeout') {
+      console.error("Database save timed out");
+      return res.status(500).json({ message: "Database operation timed out. Please try again." });
+    }
+    
+    if (error.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({ message: "File too large. Maximum size is 10MB." });
+    }
+    
+    if (error.code === 'LIMIT_FILE_COUNT') {
+      return res.status(400).json({ message: "Too many files. Maximum 5 files allowed." });
     }
     
     res.status(500).json({ message: "Server error while submitting ticket" });
