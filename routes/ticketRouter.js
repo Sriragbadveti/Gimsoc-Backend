@@ -36,8 +36,11 @@ router.post("/submit", upload.any(), async (req, res) => {
       ticketCategory: req.body.ticketCategory,
       subType: req.body.subType,
       fullName: req.body.fullName,
-      email: req.body.email
+      email: req.body.email,
+      workshopPackage: req.body.workshopPackage
     });
+    
+    console.log("📋 Full request body:", req.body);
     
     const filesMap = {};
     req.files.forEach(file => {
