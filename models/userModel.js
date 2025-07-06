@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 
 const userTicketSchema = new mongoose.Schema({
   // Required for classification
+  ticketType: String, // Add ticketType field
   ticketCategory: {
     type: String,
     enum: ["Standard", "All-Inclusive", "Doctor", "International", "Executive & Subcom"],
