@@ -180,6 +180,11 @@ router.post("/submit", upload.any(), async (req, res) => {
       ticketCategoryValue = "Standard";
       subTypeValue = subType; // Use the subType as provided
     }
+    // For Standard+3 tickets, map to Standard category
+    else if (ticketType === "Standard+3") {
+      ticketCategoryValue = "Standard";
+      subTypeValue = subType; // Use the subType as provided
+    }
     
     console.log("🔧 Processing ticket:", {
       originalTicketType: ticketType,
