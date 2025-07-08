@@ -192,6 +192,17 @@ router.post("/submit", upload.any(), async (req, res) => {
       mappedSubType: subTypeValue
     });
     
+    // Accept direct Cloudinary URLs from frontend if present
+    const headshotUrl = req.body.headshotUrl && req.body.headshotUrl.startsWith('http')
+      ? req.body.headshotUrl
+      : filesMap.headshot || null;
+    const paymentProofUrl = req.body.paymentProofUrl && req.body.paymentProofUrl.startsWith('http')
+      ? req.body.paymentProofUrl
+      : filesMap.paymentProof || null;
+    const studentIdProofUrl = req.body.studentIdProofUrl && req.body.studentIdProofUrl.startsWith('http')
+      ? req.body.studentIdProofUrl
+      : filesMap.studentIdProof || null;
+
     const newTicket = new UserTicket({
       ticketType,
       ticketCategory: ticketCategoryValue,
@@ -229,9 +240,9 @@ router.post("/submit", upload.any(), async (req, res) => {
       emergencyContactName,
       emergencyContactRelationship,
       emergencyContactPhone,
-      headshotUrl: filesMap.headshot || null,
-      paymentProofUrl: filesMap.paymentProof || null,
-      studentIdProofUrl: filesMap.studentIdProof || null,
+      headshotUrl,
+      paymentProofUrl,
+      studentIdProofUrl,
     });
 
     // 🧠 Handle group ticket attendees
