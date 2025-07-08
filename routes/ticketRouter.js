@@ -5,6 +5,7 @@ const path = require("path");
 const { v2: cloudinary } = require("cloudinary");
 const streamifier = require("streamifier");
 const UserTicket = require("../models/userModel");
+const nodemailer = require('nodemailer');
 
 const router = express.Router();
 
@@ -13,6 +14,15 @@ cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+// Configure nodemailer transporter (use environment variables for real deployment)
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.GMAIL_USER, // your gmail address
+    pass: process.env.GMAIL_PASS, // your gmail app password
+  },
 });
 
 // Multer setup for Cloudinary uploads
@@ -74,6 +84,53 @@ router.post("/submit", upload.any(), async (req, res) => {
   if (req.fileTooLarge) {
     console.log("❌ File too large");
     return res.status(400).json({ message: "File too large. Maximum size is 10MB." });
+  }
+
+  // --- TICKET LIMIT CHECKS ---
+  try {
+    const ticketType = req.body.ticketType;
+    let limit = null;
+    let query = {};
+    if (ticketType === "Standard+2") {
+      limit = 150;
+      query = { ticketType: "Standard+2" };
+    } else if (ticketType === "Standard+3") {
+      limit = 300;
+      query = { ticketType: "Standard+3" };
+    } else if (ticketType === "Standard+4" || ticketType === "Standard") {
+      // Some forms may use Standard for Std+4
+      limit = 150;
+      query = { $or: [ { ticketType: "Standard+4" }, { ticketType: "Standard" } ] };
+    } else if (ticketType && ticketType.startsWith("Doctor")) {
+      limit = 30;
+      query = { ticketType: { $regex: /^Doctor/i } };
+    } else if (ticketType && ticketType.startsWith("International")) {
+      limit = 50;
+      query = { ticketType: { $regex: /^International/i } };
+    }
+    if (limit !== null) {
+      const count = await UserTicket.countDocuments(query);
+      if (count >= limit) {
+        return res.status(409).json({ message: "Tickets for this category are sold out." });
+      }
+    }
+  } catch (err) {
+    console.error("❌ Error checking ticket limits:", err);
+    return res.status(500).json({ message: "Error checking ticket limits." });
+  }
+  
+  // --- EMAIL UNIQUENESS CHECK ---
+  try {
+    const email = req.body.email;
+    if (email) {
+      const existing = await UserTicket.findOne({ email });
+      if (existing) {
+        return res.status(409).json({ message: "This email has already been used to book a ticket." });
+      }
+    }
+  } catch (err) {
+    console.error("❌ Error checking email uniqueness:", err);
+    return res.status(500).json({ message: "Error checking email uniqueness." });
   }
   
   try {
@@ -278,6 +335,22 @@ router.post("/submit", upload.any(), async (req, res) => {
     
     await Promise.race([savePromise, timeoutPromise]);
     console.log("✅ Ticket saved successfully with ID:", newTicket._id);
+
+    // Send confirmation email
+    if (email) {
+      try {
+        await transporter.sendMail({
+          from: process.env.GMAIL_USER,
+          to: email,
+          subject: "MEDCON Ticket Booking Confirmation",
+          text: "Your ticket booking was successful, we will be sending you the tickets soon. We are excited to see you there.",
+          html: `<div style='font-family:sans-serif;font-size:1.1em'><h2>MEDCON Ticket Booking Successful!</h2><p>Your ticket booking was successful, we will be sending you the tickets soon.<br>We are <b>excited to see you there!</b></p></div>`
+        });
+        console.log("📧 Confirmation email sent to:", email);
+      } catch (mailErr) {
+        console.error("❌ Failed to send confirmation email:", mailErr);
+      }
+    }
     console.log("🎉 Sending success response...");
     res.status(201).json({ message: "Ticket submitted successfully", id: newTicket._id });
     console.log("✅ Response sent successfully");
