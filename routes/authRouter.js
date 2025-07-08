@@ -39,7 +39,7 @@ router.post("/signup", async (req, res) => {
     });
 
     return res
-      .cookie("id_token", token, { httpOnly: true, sameSite: "None", secure: true })
+      .cookie("token", token, { httpOnly: true })
       .status(200)
       .send({ message: "User has been registered successfully" });
 
@@ -81,7 +81,7 @@ router.post("/login", async (req, res) => {
     });
 
     return res
-      .cookie("id_token", token, { httpOnly: true, sameSite: "None", secure: true })
+      .cookie("token", token, { httpOnly: true })
       .status(200)
       .send({ message: "User has been logged in successfully" });
 
@@ -94,7 +94,7 @@ router.post("/login", async (req, res) => {
 // LOGOUT ROUTE
 router.post("/logout", (req, res) => {
   try {
-    res.clearCookie("id_token", { httpOnly: true, sameSite: "None", secure: true });
+    res.clearCookie("token");
     return res.status(200).send({ message: "Cookie has been cleared successfully" });
   } catch (error) {
     console.error("Logout error:", error);
