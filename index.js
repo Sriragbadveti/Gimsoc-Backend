@@ -17,13 +17,42 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads"), {
 }));
 app.use(cookieParser());
 app.use(express.urlencoded({ extended: true }));
+
+// CORS configuration
 app.use(
   cors({
-    origin: ["https://www.medcongimsoc.com", "http://localhost:5173", "http://localhost:3000"],
+    origin: ["https://www.medcongimsoc.com", "https://medcongimsoc.com", "http://localhost:5173", "http://localhost:3000"],
     credentials: true,
     exposedHeaders: ["set-cookie"],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
   })
 );
+
+// Handle preflight requests
+app.options('*', cors());
+
+// Debug middleware for CORS issues
+app.use((req, res, next) => {
+  console.log(`🌐 ${req.method} ${req.path} - Origin: ${req.headers.origin}`);
+  
+  // Additional CORS headers for problematic requests
+  res.header('Access-Control-Allow-Origin', req.headers.origin);
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  
+  next();
+});
+
+// Test endpoint for CORS
+app.get('/api/test-cors', (req, res) => {
+  res.json({ 
+    message: 'CORS is working!', 
+    origin: req.headers.origin,
+    timestamp: new Date().toISOString()
+  });
+});
 
 // ROUTES
 const authRouter = require("./routes/authRouter.js");
