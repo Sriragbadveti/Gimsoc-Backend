@@ -203,6 +203,17 @@ Category: ${ticketCategory}
             </p>
             <pre style="margin: 0; font-family: monospace; font-size: 10px; color: #495057; white-space: pre-wrap; background: #f8f9fa; padding: 10px; border-radius: 4px;">${JSON.stringify(qrData, null, 2)}</pre>
           </div>
+          
+          <div style="margin: 20px 0; padding: 15px; background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px;">
+            <h4 style="margin: 0 0 10px 0; color: #856404; font-size: 14px;">🎫 View Animated QR Code</h4>
+            <p style="margin: 0 0 10px 0; color: #856404; font-size: 12px;">
+              For the full BookMyShow-style experience with animations and live updates:
+            </p>
+            <a href="https://www.medcongimsoc.com/ticket-qr/${ticketId}" 
+               style="display: inline-block; background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 6px; font-weight: bold;">
+              🚀 View Live QR Code
+            </a>
+          </div>
           <p style="margin: 10px 0 0 0; color: #dc3545; font-size: 11px;">
             <strong>Note:</strong> This QR code updates every 5 minutes for security. If it doesn't display, use the Ticket ID or QR data above.
           </p>

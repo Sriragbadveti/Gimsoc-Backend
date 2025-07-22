@@ -62,6 +62,31 @@ router.get("/test", (req, res) => {
   res.json({ message: "Ticket router is working", timestamp: new Date().toISOString() });
 });
 
+// Get ticket data by ID
+router.get("/ticket/:ticketId", async (req, res) => {
+  try {
+    const { ticketId } = req.params;
+    
+    const ticket = await UserTicket.findById(ticketId);
+    
+    if (!ticket) {
+      return res.status(404).json({ error: "Ticket not found" });
+    }
+    
+    res.json({
+      ticketId: ticket._id,
+      fullName: ticket.fullName,
+      email: ticket.email,
+      ticketType: ticket.ticketType,
+      ticketCategory: ticket.ticketCategory,
+      createdAt: ticket.createdAt
+    });
+  } catch (error) {
+    console.error("❌ Error fetching ticket:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
 // Route to handle ticket submissions
 router.post("/submit", upload.any(), async (req, res) => {
   console.log("🚀 Ticket submission started at:", new Date().toISOString());
