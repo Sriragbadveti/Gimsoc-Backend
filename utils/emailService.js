@@ -17,16 +17,20 @@ const sendTicketConfirmationEmail = async (userData) => {
       timestamp: new Date().toISOString()
     });
     
-    // Generate QR code as SVG for better email compatibility
-    const qrCodeSvg = await QRCode.toString(qrData, {
-      type: 'svg',
+    // Generate QR code as base64 PNG for maximum email compatibility
+    const qrCodeBase64 = await QRCode.toDataURL(qrData, {
+      type: 'image/png',
       errorCorrectionLevel: 'H',
       margin: 1,
+      width: 200,
       color: {
         dark: '#000000',
         light: '#FFFFFF'
       }
     });
+    
+    console.log('🔍 QR Code generated successfully, length:', qrCodeBase64.length);
+    console.log('📋 QR Data:', qrData);
     
     const emailContent = `
       <!DOCTYPE html>
@@ -191,7 +195,7 @@ const sendTicketConfirmationEmail = async (userData) => {
               Scan this QR code at the conference for quick check-in and access to your ticket details
             </p>
             <div style="display: inline-block; padding: 10px; background-color: white; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
-              ${qrCodeSvg}
+              <img src="${qrCodeBase64}" alt="Ticket QR Code" style="width: 200px; height: 200px; display: block;" />
             </div>
             <p style="margin: 15px 0 0 0; color: #6c757d; font-size: 12px;">
               <strong>Ticket ID:</strong> ${ticketId}
