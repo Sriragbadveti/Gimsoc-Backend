@@ -8,6 +8,15 @@ const router = express.Router();
 // Initialize QR Manager
 const qrManager = new QRManager();
 
+// Test endpoint
+router.get('/test', (req, res) => {
+  res.json({ 
+    message: 'QR router is working!', 
+    timestamp: new Date().toISOString(),
+    features: ['dynamic_qr', 'websocket', 'validation', 'rate_limiting']
+  });
+});
+
 // Rate limiter for QR validation
 const rateLimiter = new RateLimiterMemory({
   keyGenerator: (req) => req.ip,

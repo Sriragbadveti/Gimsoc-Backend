@@ -100,4 +100,5 @@ const server = app.listen(PORT, () => {
 });
 
 // Setup WebSocket server
-setupWebSocket(server);
+const wss = setupWebSocket(server);
+console.log('🔌 WebSocket server initialized');

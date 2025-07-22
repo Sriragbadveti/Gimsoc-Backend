@@ -153,15 +153,26 @@ Category: ${ticketCategory}
         <div class="container">
           <div class="header">
             <div class="success-icon">🎉</div>
-            <h1>Welcome to MEDCON 2025!</h1>
-            <p>Your ticket has been successfully booked</p>
+            <h1>MEDCON'25 - Payment Confirmation</h1>
+            <p>Your payment has been successfully received</p>
           </div>
           
           <p>Dear <strong>${fullName}</strong>,</p>
           
-          <p>Thank you for registering for <strong>MEDCON 2025</strong>! We're thrilled to have you join us for this incredible medical conference experience.</p>
+          <p>We are pleased to confirm that your payment for <strong>GIMSOC's 3rd Annual Medical Conference – MEDCON'25: Outbreaks to Breakthroughs</strong> has been successfully received. We look forward to welcoming you to the event!</p>
           
-          <div class="ticket-details">
+                    <p>This year's conference will revolve around the pressing theme of <strong>Infectious Disease</strong>, exploring the journey from global outbreaks to groundbreaking medical responses.</p>
+          
+          <div style="margin: 20px 0; padding: 15px; background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px;">
+            <h4 style="margin: 0 0 10px 0; color: #856404; font-size: 16px;">🗓 Conference Details</h4>
+            <p style="margin: 0; color: #856404; font-size: 14px;">
+              <strong>Date:</strong> 24 & 25 October 2025, from 9:00 AM to 6:00 PM<br>
+              <strong>Gala Night:</strong> 26 October from 6:00 PM to 12:00 AM<br>
+              <strong>Venue:</strong> To Be Announced
+            </p>
+          </div>
+            
+            <div class="ticket-details">
             <h3>📋 Ticket Details</h3>
             <div class="detail-row">
               <span class="detail-label">Ticket ID:</span>
@@ -181,10 +192,24 @@ Category: ${ticketCategory}
             </div>
           </div>
           
+          <div style="text-align: center; margin: 30px 0; padding: 20px; background-color: #e7f3ff; border: 2px solid #007bff; border-radius: 10px;">
+            <h3 style="margin: 0 0 15px 0; color: #0056b3; font-size: 18px;">🎫 Your Dynamic QR Code</h3>
+            <p style="margin: 0 0 20px 0; color: #0056b3; font-size: 14px;">
+              Experience the full BookMyShow-style animated QR code with real-time updates!
+            </p>
+            <a href="https://www.medcongimsoc.com/ticket-qr/${ticketId}" 
+               style="display: inline-block; background: #007bff; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold; margin-bottom: 20px;">
+              🚀 View Live Animated QR Code
+            </a>
+            <p style="font-size: 12px; margin: 10px 0; color: #0056b3;">
+              This link provides a professional QR experience with animations and live updates
+            </p>
+          </div>
+          
           <div style="text-align: center; margin: 30px 0; padding: 20px; background-color: #f8f9fa; border-radius: 10px;">
-            <h3 style="margin: 0 0 15px 0; color: #28a745;">🎫 Your Ticket QR Code</h3>
+            <h3 style="margin: 0 0 15px 0; color: #28a745;">📱 Static QR Code (Email Compatible)</h3>
             <p style="margin: 0 0 20px 0; color: #6c757d; font-size: 14px;">
-              Scan this QR code at the conference for quick check-in and access to your ticket details
+              Scan this QR code at the conference for quick check-in
             </p>
             <div style="display: inline-block; padding: 15px; background-color: white; border: 2px solid #28a745; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
               <img src="${qrCode}" alt="Dynamic Ticket QR Code" style="width: 200px; height: 200px; display: block; border: 1px solid #ddd;" />
@@ -219,35 +244,32 @@ Category: ${ticketCategory}
           </p>
           </div>
           
-          <div class="highlight">
-            <strong>🎯 What's Next?</strong><br>
-            We're excited to see you at MEDCON 2025! Keep an eye on your email for important updates, workshop selections, and conference details.
+          <div style="margin: 20px 0; padding: 15px; background-color: #f8d7da; border: 1px solid #f5c6cb; border-radius: 8px;">
+            <h4 style="margin: 0 0 10px 0; color: #721c24; font-size: 14px;">⚠️ Important Information</h4>
+            <p style="margin: 0; color: #721c24; font-size: 12px;">
+              <strong>Please make sure to arrive at least 30 minutes early on each day for check-in and onboarding.</strong>
+            </p>
           </div>
           
-          <div class="next-steps">
-            <h3>📅 What to Expect</h3>
-            <ul>
-              <li><strong>Workshop Selection:</strong> You'll receive an email when workshop registration opens</li>
-              <li><strong>Conference Schedule:</strong> Detailed schedule will be shared closer to the event</li>
-              <li><strong>Venue Information:</strong> Location details and directions will be provided</li>
-              <li><strong>Networking Opportunities:</strong> Connect with fellow medical professionals</li>
-              <li><strong>Certificate:</strong> Receive your CPD certificate after the conference</li>
-            </ul>
+          <div style="margin: 20px 0; padding: 15px; background-color: #d1ecf1; border: 1px solid #bee5eb; border-radius: 8px;">
+            <h4 style="margin: 0 0 10px 0; color: #0c5460; font-size: 14px;">🔗 Additional Resources</h4>
+            <p style="margin: 0; color: #0c5460; font-size: 12px;">
+              <strong>Website:</strong> <a href="https://www.medcongimsoc.com" style="color: #007bff;">www.medcongimsoc.com</a><br>
+              <strong>Instagram:</strong> @medcon_gimsoc | @gimsoc_<br>
+              <strong>Email:</strong> medconconferencegimsoc@gmail.com
+            </p>
           </div>
           
-          <p>We're counting down the days until MEDCON 2025! Get ready for an amazing experience filled with learning, networking, and unforgettable memories.</p>
+          <p>Thank you again for joining us. We look forward to an inspiring and collaborative experience together!</p>
           
-          <p>If you have any questions, feel free to reach out to us at <strong>medconconferencegimsoc@gmail.com</strong></p>
+          <p><strong>Best regards,</strong><br>
+          Nupura Ajesh & Saja Mohamed<br>
+          Head & Asst. Head of Registration & Attendee Services (Respectively)<br>
+          MEDCON'25 | Georgian International Medical Student Society (GIMSOC)</p>
           
           <div class="footer">
-            <p><strong>MEDCON 2025</strong> - Organized by GIMSOC</p>
-            <div class="social-links">
-              <a href="https://www.medcongimsoc.com">Website</a> |
-              <a href="mailto:medconconferencegimsoc@gmail.com">Contact Us</a>
-            </div>
-            <p style="margin-top: 15px; font-size: 12px; color: #adb5bd;">
-              This is an automated confirmation email. Please do not reply to this email.
-            </p>
+            <p><strong>📧</strong> medconconferencegimsoc@gmail.com | gimsoc21@gmail.com<br>
+            <strong>🌐</strong> www.medcongimsoc.com | www.gimsoc.com</p>
           </div>
         </div>
       </body>
@@ -257,7 +279,7 @@ Category: ${ticketCategory}
     const { data, error } = await resend.emails.send({
       from: 'onboarding@resend.dev',
       to: [email],
-      subject: '🎉 Welcome to MEDCON 2025 - Your Ticket Confirmation',
+      subject: "GIMSOC's MEDCON'25 – Payment Confirmation",
       html: emailContent,
     });
 
