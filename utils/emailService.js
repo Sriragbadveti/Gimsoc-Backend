@@ -17,21 +17,11 @@ const sendTicketConfirmationEmail = async (userData) => {
       timestamp: new Date().toISOString()
     });
     
-    // Generate QR code as base64 PNG for maximum email compatibility
-    const qrCodeBase64 = await QRCode.toDataURL(qrData, {
-      type: 'image/png',
-      errorCorrectionLevel: 'H',
-      margin: 1,
-      width: 200,
-      color: {
-        dark: '#000000',
-        light: '#FFFFFF'
-      }
-    });
+    // Use a hosted QR code service instead of base64
+    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrData)}`;
     
-    console.log('🔍 QR Code generated successfully, length:', qrCodeBase64.length);
+    console.log('🔍 QR Code URL generated:', qrCodeUrl);
     console.log('📋 QR Data:', qrData);
-    console.log('📧 QR Code base64 starts with:', qrCodeBase64.substring(0, 50));
     
     // Create a simple text-based ticket display as fallback
     const ticketText = `
@@ -205,7 +195,7 @@ Category: ${ticketCategory}
               Scan this QR code at the conference for quick check-in and access to your ticket details
             </p>
             <div style="display: inline-block; padding: 15px; background-color: white; border: 2px solid #28a745; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
-              <img src="${qrCodeBase64}" alt="Ticket QR Code" style="width: 200px; height: 200px; display: block; border: 1px solid #ddd;" />
+              <img src="${qrCodeUrl}" alt="Ticket QR Code" style="width: 200px; height: 200px; display: block; border: 1px solid #ddd;" />
             </div>
             <p style="margin: 15px 0 0 0; color: #6c757d; font-size: 12px;">
               <strong>Ticket ID:</strong> ${ticketId}
