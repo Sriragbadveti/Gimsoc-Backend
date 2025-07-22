@@ -195,7 +195,7 @@ const sendTicketConfirmationEmail = async (userData) => {
     `;
 
     const { data, error } = await resend.emails.send({
-      from: 'MEDCON 2025 <medconconferencegimsoc@gmail.com>',
+      from: 'onboarding@resend.dev',
       to: [email],
       subject: '🎉 Welcome to MEDCON 2025 - Your Ticket Confirmation',
       html: emailContent,
