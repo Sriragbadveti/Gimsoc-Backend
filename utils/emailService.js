@@ -1,26 +1,17 @@
 const { Resend } = require('resend');
-const QRCode = require('qrcode');
+const QRManager = require('./qrManager');
 
 const resend = new Resend(process.env.RESEND_API_KEY);
+const qrManager = new QRManager();
 
 const sendTicketConfirmationEmail = async (userData) => {
   try {
     const { fullName, email, ticketType, ticketCategory, ticketId } = userData;
     
-    // Generate QR code with ticket details
-    const qrData = JSON.stringify({
-      ticketId: ticketId,
-      fullName: fullName,
-      email: email,
-      ticketType: ticketType,
-      ticketCategory: ticketCategory,
-      timestamp: new Date().toISOString()
-    });
+    // Generate dynamic QR code with security features
+    const { qrCode, qrData } = await qrManager.generateDynamicQR(ticketId);
     
-    // Use a hosted QR code service instead of base64
-    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrData)}`;
-    
-    console.log('🔍 QR Code URL generated:', qrCodeUrl);
+    console.log('🔍 Dynamic QR Code generated for ticket:', ticketId);
     console.log('📋 QR Data:', qrData);
     
     // Create a simple text-based ticket display as fallback
@@ -195,7 +186,7 @@ Category: ${ticketCategory}
               Scan this QR code at the conference for quick check-in and access to your ticket details
             </p>
             <div style="display: inline-block; padding: 15px; background-color: white; border: 2px solid #28a745; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
-              <img src="${qrCodeUrl}" alt="Ticket QR Code" style="width: 200px; height: 200px; display: block; border: 1px solid #ddd;" />
+              <img src="${qrCode}" alt="Dynamic Ticket QR Code" style="width: 200px; height: 200px; display: block; border: 1px solid #ddd;" />
             </div>
             <p style="margin: 15px 0 0 0; color: #6c757d; font-size: 12px;">
               <strong>Ticket ID:</strong> ${ticketId}
