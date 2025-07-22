@@ -59,23 +59,24 @@ const authRouter = require("./routes/authRouter.js");
 app.use("/api/auth", authRouter);
 
 const ticketRouter = require("./routes/getTicketType.js");
-app.use("/api/ticket" , ticketRouter)
+app.use("/api/ticket", ticketRouter);
 
 const paypalRouter = require("./routes/paypalRouter.js");
-app.use("/api/paypal" , paypalRouter);
+app.use("/api/paypal", paypalRouter);
 
 const dashboardRouter = require("./routes/dashboardRouter.js");
-app.use("/api/info" , dashboardRouter);
+app.use("/api/info", dashboardRouter);
 
 const adminRouter = require("./routes/adminRouter.js");
-app.use("/api/admin" , adminRouter);
+app.use("/api/admin", adminRouter);
 
 const abstractRouter = require("./routes/abstractRouter.js");
-app.use("/api/abstract" , abstractRouter)
+app.use("/api/abstract", abstractRouter);
 
 const submissionRouter = require("./routes/ticketRouter.js");
-app.use("/api/form" , submissionRouter);
+app.use("/api/form", submissionRouter);
 
+// QR router setup
 const { router: qrRouter, setupWebSocket } = require("./routes/qrRouter.js");
 app.use("/api/qr", qrRouter);
 
