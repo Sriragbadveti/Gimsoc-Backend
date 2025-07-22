@@ -36,20 +36,12 @@ class QRManager {
         nonce: nonce
       };
 
-      // Generate QR code as data URL
-      const qrCodeDataUrl = await QRCode.toDataURL(JSON.stringify(qrData), {
-        type: 'image/png',
-        errorCorrectionLevel: 'H',
-        margin: 1,
-        width: 200,
-        color: {
-          dark: '#000000',
-          light: '#FFFFFF'
-        }
-      });
+      // Generate QR code using hosted service for email compatibility
+      const qrDataString = JSON.stringify(qrData);
+      const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrDataString)}&format=png&margin=1&ecc=H`;
 
       console.log(`🔍 Generated dynamic QR for ticket ${ticketId}`);
-      return { qrCode: qrCodeDataUrl, qrData };
+      return { qrCode: qrCodeUrl, qrData };
     } catch (error) {
       console.error('❌ Error generating dynamic QR:', error);
       throw error;

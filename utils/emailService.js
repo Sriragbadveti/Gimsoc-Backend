@@ -13,6 +13,7 @@ const sendTicketConfirmationEmail = async (userData) => {
     
     console.log('🔍 Dynamic QR Code generated for ticket:', ticketId);
     console.log('📋 QR Data:', qrData);
+    console.log('🔗 QR Code URL:', qrCode);
     
     // Create a simple text-based ticket display as fallback
     const ticketText = `
@@ -191,13 +192,20 @@ Category: ${ticketCategory}
             <p style="margin: 15px 0 0 0; color: #6c757d; font-size: 12px;">
               <strong>Ticket ID:</strong> ${ticketId}
             </p>
-            <div style="margin: 20px 0; padding: 15px; background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px;">
-              <h4 style="margin: 0 0 10px 0; color: #856404; font-size: 14px;">📋 Ticket Details (Text Version)</h4>
-              <pre style="margin: 0; font-family: monospace; font-size: 12px; color: #495057; white-space: pre-wrap;">${ticketText}</pre>
-            </div>
-            <p style="margin: 10px 0 0 0; color: #dc3545; font-size: 11px;">
-              <strong>Note:</strong> If QR code doesn't display, please show your Ticket ID at check-in
+                      <div style="margin: 20px 0; padding: 15px; background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px;">
+            <h4 style="margin: 0 0 10px 0; color: #856404; font-size: 14px;">📋 Ticket Details (Text Version)</h4>
+            <pre style="margin: 0; font-family: monospace; font-size: 12px; color: #495057; white-space: pre-wrap;">${ticketText}</pre>
+          </div>
+          <div style="margin: 20px 0; padding: 15px; background-color: #e8f5e8; border: 1px solid #c3e6c3; border-radius: 8px;">
+            <h4 style="margin: 0 0 10px 0; color: #155724; font-size: 14px;">🔐 Dynamic QR Data (For Manual Entry)</h4>
+            <p style="margin: 0 0 10px 0; color: #155724; font-size: 12px;">
+              If QR code doesn't display, you can manually enter this data at check-in:
             </p>
+            <pre style="margin: 0; font-family: monospace; font-size: 10px; color: #495057; white-space: pre-wrap; background: #f8f9fa; padding: 10px; border-radius: 4px;">${JSON.stringify(qrData, null, 2)}</pre>
+          </div>
+          <p style="margin: 10px 0 0 0; color: #dc3545; font-size: 11px;">
+            <strong>Note:</strong> This QR code updates every 5 minutes for security. If it doesn't display, use the Ticket ID or QR data above.
+          </p>
           </div>
           
           <div class="highlight">
