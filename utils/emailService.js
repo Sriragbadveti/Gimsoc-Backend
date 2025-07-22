@@ -31,6 +31,16 @@ const sendTicketConfirmationEmail = async (userData) => {
     
     console.log('🔍 QR Code generated successfully, length:', qrCodeBase64.length);
     console.log('📋 QR Data:', qrData);
+    console.log('📧 QR Code base64 starts with:', qrCodeBase64.substring(0, 50));
+    
+    // Create a simple text-based ticket display as fallback
+    const ticketText = `
+Ticket ID: ${ticketId}
+Name: ${fullName}
+Email: ${email}
+Type: ${ticketType}
+Category: ${ticketCategory}
+    `.trim();
     
     const emailContent = `
       <!DOCTYPE html>
@@ -194,11 +204,18 @@ const sendTicketConfirmationEmail = async (userData) => {
             <p style="margin: 0 0 20px 0; color: #6c757d; font-size: 14px;">
               Scan this QR code at the conference for quick check-in and access to your ticket details
             </p>
-            <div style="display: inline-block; padding: 10px; background-color: white; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
-              <img src="${qrCodeBase64}" alt="Ticket QR Code" style="width: 200px; height: 200px; display: block;" />
+            <div style="display: inline-block; padding: 15px; background-color: white; border: 2px solid #28a745; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+              <img src="${qrCodeBase64}" alt="Ticket QR Code" style="width: 200px; height: 200px; display: block; border: 1px solid #ddd;" />
             </div>
             <p style="margin: 15px 0 0 0; color: #6c757d; font-size: 12px;">
               <strong>Ticket ID:</strong> ${ticketId}
+            </p>
+            <div style="margin: 20px 0; padding: 15px; background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px;">
+              <h4 style="margin: 0 0 10px 0; color: #856404; font-size: 14px;">📋 Ticket Details (Text Version)</h4>
+              <pre style="margin: 0; font-family: monospace; font-size: 12px; color: #495057; white-space: pre-wrap;">${ticketText}</pre>
+            </div>
+            <p style="margin: 10px 0 0 0; color: #dc3545; font-size: 11px;">
+              <strong>Note:</strong> If QR code doesn't display, please show your Ticket ID at check-in
             </p>
           </div>
           
