@@ -334,7 +334,8 @@ router.post("/submit", upload.any(), async (req, res) => {
         fullName: newTicket.fullName,
         email: newTicket.email,
         ticketType: newTicket.ticketType,
-        ticketCategory: newTicket.ticketCategory
+        ticketCategory: newTicket.ticketCategory,
+        ticketId: newTicket._id.toString()
       });
       
       if (emailResult.success) {

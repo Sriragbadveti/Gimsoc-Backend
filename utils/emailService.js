@@ -1,10 +1,32 @@
 const { Resend } = require('resend');
+const QRCode = require('qrcode');
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 const sendTicketConfirmationEmail = async (userData) => {
   try {
-    const { fullName, email, ticketType, ticketCategory } = userData;
+    const { fullName, email, ticketType, ticketCategory, ticketId } = userData;
+    
+    // Generate QR code with ticket details
+    const qrData = JSON.stringify({
+      ticketId: ticketId,
+      fullName: fullName,
+      email: email,
+      ticketType: ticketType,
+      ticketCategory: ticketCategory,
+      timestamp: new Date().toISOString()
+    });
+    
+    const qrCodeDataUrl = await QRCode.toDataURL(qrData, {
+      errorCorrectionLevel: 'H',
+      type: 'image/png',
+      quality: 0.92,
+      margin: 1,
+      color: {
+        dark: '#000000',
+        light: '#FFFFFF'
+      }
+    });
     
     const emailContent = `
       <!DOCTYPE html>
@@ -146,6 +168,10 @@ const sendTicketConfirmationEmail = async (userData) => {
           <div class="ticket-details">
             <h3>📋 Ticket Details</h3>
             <div class="detail-row">
+              <span class="detail-label">Ticket ID:</span>
+              <span class="detail-value">${ticketId}</span>
+            </div>
+            <div class="detail-row">
               <span class="detail-label">Ticket Type:</span>
               <span class="detail-value">${ticketType}</span>
             </div>
@@ -157,6 +183,17 @@ const sendTicketConfirmationEmail = async (userData) => {
               <span class="detail-label">Registration Email:</span>
               <span class="detail-value">${email}</span>
             </div>
+          </div>
+          
+          <div style="text-align: center; margin: 30px 0; padding: 20px; background-color: #f8f9fa; border-radius: 10px;">
+            <h3 style="margin: 0 0 15px 0; color: #28a745;">🎫 Your Ticket QR Code</h3>
+            <p style="margin: 0 0 20px 0; color: #6c757d; font-size: 14px;">
+              Scan this QR code at the conference for quick check-in and access to your ticket details
+            </p>
+            <img src="${qrCodeDataUrl}" alt="Ticket QR Code" style="width: 200px; height: 200px; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);" />
+            <p style="margin: 15px 0 0 0; color: #6c757d; font-size: 12px;">
+              <strong>Ticket ID:</strong> ${ticketId}
+            </p>
           </div>
           
           <div class="highlight">
