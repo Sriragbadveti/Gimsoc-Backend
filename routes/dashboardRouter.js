@@ -91,7 +91,7 @@ router.post("/login", async (req, res) => {
 });
 
 // Get user profile info (protected route)
-router.get("/profile", dashboardAuthMiddleware, async (req, res) => {
+router.get("/profile",  async (req, res) => {
   try {
     const user = await UserTicket.findById(req.user.id);
 
