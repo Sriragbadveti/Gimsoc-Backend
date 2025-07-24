@@ -207,12 +207,12 @@ Category: ${ticketCategory}
           </div>
           
           <div style="text-align: center; margin: 30px 0; padding: 20px; background-color: #f8f9fa; border-radius: 10px;">
-            <h3 style="margin: 0 0 15px 0; color: #28a745;">📱 Static QR Code (Email Compatible)</h3>
+            <h3 style="margin: 0 0 15px 0; color: #28a745;">📱 Dynamic QR Code (Email Compatible)</h3>
             <p style="margin: 0 0 20px 0; color: #6c757d; font-size: 14px;">
-              Scan this QR code at the conference for quick check-in
+              Scan this dynamic QR code at the conference for quick check-in (updates every 5 minutes)
             </p>
             <div style="display: inline-block; padding: 15px; background-color: white; border: 2px solid #28a745; border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
-              <img src="${qrCode}" alt="Dynamic Ticket QR Code" style="width: 200px; height: 200px; display: block; border: 1px solid #ddd;" />
+              <img src="${qrCode}" alt="Dynamic Ticket QR Code (Updates Every 5 Minutes)" style="width: 200px; height: 200px; display: block; border: 1px solid #ddd;" />
             </div>
             <p style="margin: 15px 0 0 0; color: #6c757d; font-size: 12px;">
               <strong>Ticket ID:</strong> ${ticketId}
