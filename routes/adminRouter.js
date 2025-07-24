@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const Abstract  = require("../models/abstractModel.js");
 const UserTicket = require("../models/userModel.js"); 
+const { sendTicketApprovalEmail, sendTicketRejectionEmail } = require("../utils/emailService.js");
 const path = require("path");
 const fs = require("fs");
 
@@ -14,16 +15,47 @@ router.get("/getalltickets", async (req, res) => {
       .sort({ createdAt: -1 }) // latest tickets first
       .lean();
 
-    // Optional: Map tickets to include file URLs if you store only paths
+    // Map tickets to include all detailed information
     const processedTickets = tickets.map(ticket => ({
       _id: ticket._id,
       ticketType: ticket.ticketType,
+      ticketCategory: ticket.ticketCategory,
+      subType: ticket.subType,
       fullName: ticket.fullName,
       email: ticket.email,
+      whatsapp: ticket.whatsapp,
+      dashboardPassword: ticket.dashboardPassword,
       workshopPackage: ticket.workshopPackage,
       paymentStatus: ticket.paymentStatus,
       headshotUrl: ticket.headshotUrl || null,
       paymentProofUrl: ticket.paymentProofUrl || null,
+      universityName: ticket.universityName,
+      semester: ticket.semester,
+      medicalQualification: ticket.medicalQualification,
+      specialty: ticket.specialty,
+      currentWorkplace: ticket.currentWorkplace,
+      countryOfPractice: ticket.countryOfPractice,
+      nationality: ticket.nationality,
+      countryOfResidence: ticket.countryOfResidence,
+      passportNumber: ticket.passportNumber,
+      needsVisaSupport: ticket.needsVisaSupport,
+      emergencyContactName: ticket.emergencyContactName,
+      emergencyContactRelationship: ticket.emergencyContactRelationship,
+      emergencyContactPhone: ticket.emergencyContactPhone,
+      foodPreference: ticket.foodPreference,
+      dietaryRestrictions: ticket.dietaryRestrictions,
+      accessibilityNeeds: ticket.accessibilityNeeds,
+      isTsuStudent: ticket.isTsuStudent,
+      tsuEmail: ticket.tsuEmail,
+      isGimsocMember: ticket.isGimsocMember,
+      membershipCode: ticket.membershipCode,
+      infoAccurate: ticket.infoAccurate,
+      mediaConsent: ticket.mediaConsent,
+      policies: ticket.policies,
+      emailConsent: ticket.emailConsent,
+      whatsappConsent: ticket.whatsappConsent,
+      paymentMethod: ticket.paymentMethod,
+      discountConfirmation: ticket.discountConfirmation,
       attendees: ticket.attendees?.map(att => ({
         name: att.name,
         email: att.email,
@@ -78,9 +110,36 @@ router.patch("/approveticket/:ticketId",  async (req, res) => {
     ticket.paymentStatus = paymentStatus;
     await ticket.save();
 
-    return res.status(200).json({ message: "Ticket approved successfully", ticket });
+    // Send email based on status
+    if (paymentStatus === "completed") {
+      try {
+        await sendTicketApprovalEmail({
+          fullName: ticket.fullName,
+          email: ticket.email,
+          ticketType: ticket.ticketType,
+          ticketCategory: ticket.ticketCategory,
+        });
+        console.log("✅ Approval email sent successfully to:", ticket.email);
+      } catch (emailError) {
+        console.error("❌ Failed to send approval email:", emailError);
+      }
+    } else if (paymentStatus === "rejected") {
+      try {
+        await sendTicketRejectionEmail({
+          fullName: ticket.fullName,
+          email: ticket.email,
+          ticketType: ticket.ticketType,
+          ticketCategory: ticket.ticketCategory,
+        });
+        console.log("✅ Rejection email sent successfully to:", ticket.email);
+      } catch (emailError) {
+        console.error("❌ Failed to send rejection email:", emailError);
+      }
+    }
+
+    return res.status(200).json({ message: "Ticket status updated successfully", ticket });
   } catch (error) {
-    console.error("Error approving ticket:", error);
+    console.error("Error updating ticket status:", error);
     return res.status(500).json({ message: "Internal server error" });
   }
 });

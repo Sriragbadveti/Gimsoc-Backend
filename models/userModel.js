@@ -18,6 +18,7 @@ const userTicketSchema = new mongoose.Schema({
   email: { type: String, required: true },
   whatsapp: String,
   password: String, // optional, if needed
+  dashboardPassword: String, // password specifically for dashboard access
 
   // Medical / Academic
   universityName: String,

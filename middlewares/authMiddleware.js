@@ -52,3 +52,43 @@ module.exports.authMiddleware = async (req, res, next) => {
     res.status(500).send({ message: "Internal server error" });
   }
 };
+
+// Dashboard authentication middleware
+module.exports.dashboardAuthMiddleware = async (req, res, next) => {
+  try {
+    const token = req.cookies.dashboardToken;
+    console.log("🔍 Dashboard auth middleware - Token:", token ? "Present" : "Missing");
+
+    if (!token) {
+      console.log("❌ No dashboard token found in cookies");
+      return res.status(401).json({ message: "Dashboard access token not found" });
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || "your-secret-key");
+    console.log("🔍 Decoded dashboard token:", decoded);
+    
+    // Find the user directly in UserTicket model
+    const user = await User.findById(decoded.userId);
+    console.log("🔍 Dashboard user found:", user ? "Yes" : "No");
+
+    if (!user) {
+      console.log("❌ No user found with ID:", decoded.userId);
+      return res.status(401).json({ message: "Invalid dashboard token" });
+    }
+
+    console.log("✅ Dashboard auth successful for user:", user.email);
+
+    req.user = {
+      id: user._id,
+      email: user.email,
+      fullName: user.fullName,
+      ticketType: user.ticketType,
+      ticketCategory: user.ticketCategory,
+    };
+
+    next();
+  } catch (error) {
+    console.error("❌ Dashboard auth middleware error:", error);
+    res.status(401).json({ message: "Invalid dashboard token" });
+  }
+};

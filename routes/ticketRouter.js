@@ -198,6 +198,7 @@ router.post("/submit", upload.any(), async (req, res) => {
       subType: req.body.subType,
       fullName: req.body.fullName,
       email: req.body.email,
+      dashboardPassword: req.body.dashboardPassword ? "***PROVIDED***" : "NOT PROVIDED",
       workshopPackage: req.body.workshopPackage,
       isGimsocMember: req.body.isGimsocMember,
       isTsuStudent: req.body.isTsuStudent
@@ -238,6 +239,7 @@ router.post("/submit", upload.any(), async (req, res) => {
       email,
       whatsapp,
       password,
+      dashboardPassword,
       workshopPackage,
       foodPreference,
       dietaryRestrictions,
@@ -324,7 +326,8 @@ router.post("/submit", upload.any(), async (req, res) => {
       subType: subTypeValue,
       email,
       whatsapp,
-      password,
+      password: password, // Keep original password
+      dashboardPassword: dashboardPassword, // Save dashboard password separately
       workshopPackage,
       foodPreference,
       dietaryRestrictions,
@@ -382,6 +385,7 @@ router.post("/submit", upload.any(), async (req, res) => {
       subType: newTicket.subType,
       email: newTicket.email,
       fullName: newTicket.fullName,
+      hasPassword: !!newTicket.password,
       hasFiles: !!newTicket.headshotUrl || !!newTicket.paymentProofUrl
     });
     

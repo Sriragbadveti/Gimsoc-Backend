@@ -296,6 +296,386 @@ Category: ${ticketCategory}
   }
 };
 
+const sendTicketApprovalEmail = async (userData) => {
+  try {
+    const { fullName, email, ticketType, ticketCategory } = userData;
+    
+    const emailContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>MEDCON 2025 - Ticket Approved</title>
+        <style>
+          body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+          }
+          .container {
+            background-color: #ffffff;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+          }
+          .header {
+            text-align: center;
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 10px 10px 0 0;
+            margin: -30px -30px 30px -30px;
+          }
+          .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: bold;
+          }
+          .header p {
+            margin: 10px 0 0 0;
+            font-size: 16px;
+            opacity: 0.9;
+          }
+          .success-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+          }
+          .ticket-details {
+            background-color: #f8f9fa;
+            border-left: 4px solid #28a745;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+          }
+          .ticket-details h3 {
+            margin: 0 0 15px 0;
+            color: #28a745;
+            font-size: 18px;
+          }
+          .detail-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            padding: 5px 0;
+            border-bottom: 1px solid #e9ecef;
+          }
+          .detail-row:last-child {
+            border-bottom: none;
+          }
+          .detail-label {
+            font-weight: 600;
+            color: #495057;
+          }
+          .detail-value {
+            color: #6c757d;
+          }
+          .cta-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+            color: white;
+            padding: 15px 30px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: bold;
+            margin: 20px 0;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0, 123, 255, 0.3);
+            transition: all 0.3s ease;
+          }
+          .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 123, 255, 0.4);
+          }
+          .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e9ecef;
+            text-align: center;
+            color: #6c757d;
+            font-size: 14px;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <div class="success-icon">✅</div>
+            <h1>Ticket Approved!</h1>
+            <p>Your MEDCON'25 ticket has been successfully approved</p>
+          </div>
+          
+          <p>Dear <strong>${fullName}</strong>,</p>
+          
+          <p>Great news! Your ticket for <strong>MEDCON'25: Outbreaks to Breakthroughs</strong> has been successfully approved by our admin team.</p>
+          
+          <div class="ticket-details">
+            <h3>🎫 Ticket Information</h3>
+            <div class="detail-row">
+              <span class="detail-label">Ticket Type:</span>
+              <span class="detail-value">${ticketType}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Category:</span>
+              <span class="detail-value">${ticketCategory}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Status:</span>
+              <span class="detail-value" style="color: #28a745; font-weight: bold;">✅ Approved</span>
+            </div>
+          </div>
+          
+          <p>You can now access your personalized dashboard to view your ticket details, conference schedule, and more!</p>
+          
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="https://www.medcongimsoc.com/dashboard-login" class="cta-button">
+              🚀 Access Your Dashboard
+            </a>
+            <p style="font-size: 12px; margin: 10px 0; color: #6c757d;">
+              Use your email and dashboard password to log in
+            </p>
+          </div>
+          
+          <div style="margin: 20px 0; padding: 15px; background-color: #d1ecf1; border: 1px solid #bee5eb; border-radius: 8px;">
+            <h4 style="margin: 0 0 10px 0; color: #0c5460; font-size: 14px;">🔗 Additional Resources</h4>
+            <p style="margin: 0; color: #0c5460; font-size: 12px;">
+              <strong>Website:</strong> <a href="https://www.medcongimsoc.com" style="color: #007bff;">www.medcongimsoc.com</a><br>
+              <strong>Instagram:</strong> @medcon_gimsoc | @gimsoc_<br>
+              <strong>Email:</strong> medconconferencegimsoc@gmail.com
+            </p>
+          </div>
+          
+          <p>Thank you for choosing MEDCON'25. We look forward to seeing you at the conference!</p>
+          
+          <p><strong>Best regards,</strong><br>
+          Nupura Ajesh & Saja Mohamed<br>
+          Head & Asst. Head of Registration & Attendee Services (Respectively)<br>
+          MEDCON'25 | Georgian International Medical Student Society (GIMSOC)</p>
+          
+          <div class="footer">
+            <p><strong>📧</strong> medconconferencegimsoc@gmail.com | gimsoc21@gmail.com<br>
+            <strong>🌐</strong> www.medcongimsoc.com | www.gimsoc.com</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    const { data, error } = await resend.emails.send({
+      from: 'onboarding@resend.dev',
+      to: [email],
+      subject: "MEDCON'25 - Your Ticket Has Been Approved! 🎉",
+      html: emailContent,
+    });
+
+    if (error) {
+      console.error('❌ Approval email sending failed:', error);
+      return { success: false, error };
+    }
+
+    console.log('✅ Approval email sent successfully to:', email);
+    return { success: true, data };
+  } catch (error) {
+    console.error('❌ Error sending approval email:', error);
+    return { success: false, error };
+  }
+};
+
+const sendTicketRejectionEmail = async (userData) => {
+  try {
+    const { fullName, email, ticketType, ticketCategory } = userData;
+    
+    const emailContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>MEDCON 2025 - Ticket Status Update</title>
+        <style>
+          body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+          }
+          .container {
+            background-color: #ffffff;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+          }
+          .header {
+            text-align: center;
+            background: linear-gradient(135deg, #dc3545 0%, #c82333 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 10px 10px 0 0;
+            margin: -30px -30px 30px -30px;
+          }
+          .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: bold;
+          }
+          .header p {
+            margin: 10px 0 0 0;
+            font-size: 16px;
+            opacity: 0.9;
+          }
+          .status-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+          }
+          .ticket-details {
+            background-color: #f8f9fa;
+            border-left: 4px solid #dc3545;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 5px;
+          }
+          .ticket-details h3 {
+            margin: 0 0 15px 0;
+            color: #dc3545;
+            font-size: 18px;
+          }
+          .detail-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            padding: 5px 0;
+            border-bottom: 1px solid #e9ecef;
+          }
+          .detail-row:last-child {
+            border-bottom: none;
+          }
+          .detail-label {
+            font-weight: 600;
+            color: #495057;
+          }
+          .detail-value {
+            color: #6c757d;
+          }
+          .cta-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+            color: white;
+            padding: 15px 30px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: bold;
+            margin: 20px 0;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0, 123, 255, 0.3);
+            transition: all 0.3s ease;
+          }
+          .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 123, 255, 0.4);
+          }
+          .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e9ecef;
+            text-align: center;
+            color: #6c757d;
+            font-size: 14px;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <div class="status-icon">⚠️</div>
+            <h1>Ticket Status Update</h1>
+            <p>Your MEDCON'25 ticket application has been reviewed</p>
+          </div>
+          
+          <p>Dear <strong>${fullName}</strong>,</p>
+          
+          <p>We regret to inform you that your ticket application for <strong>MEDCON'25: Outbreaks to Breakthroughs</strong> has not been approved at this time.</p>
+          
+          <div class="ticket-details">
+            <h3>🎫 Application Details</h3>
+            <div class="detail-row">
+              <span class="detail-label">Ticket Type:</span>
+              <span class="detail-value">${ticketType}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Category:</span>
+              <span class="detail-value">${ticketCategory}</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-label">Status:</span>
+              <span class="detail-value" style="color: #dc3545; font-weight: bold;">❌ Not Approved</span>
+            </div>
+          </div>
+          
+          <p>This decision may be due to various factors including incomplete information, payment issues, or capacity limitations. If you believe this is an error or would like to reapply, please contact our support team.</p>
+          
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="https://www.medcongimsoc.com/tickets" class="cta-button">
+              🔄 Reapply for Ticket
+            </a>
+            <p style="font-size: 12px; margin: 10px 0; color: #6c757d;">
+              You can submit a new application with updated information
+            </p>
+          </div>
+          
+          <div style="margin: 20px 0; padding: 15px; background-color: #d1ecf1; border: 1px solid #bee5eb; border-radius: 8px;">
+            <h4 style="margin: 0 0 10px 0; color: #0c5460; font-size: 14px;">📞 Need Help?</h4>
+            <p style="margin: 0; color: #0c5460; font-size: 12px;">
+              If you have any questions or need assistance, please contact us:<br>
+              <strong>Email:</strong> medconconferencegimsoc@gmail.com<br>
+              <strong>Website:</strong> <a href="https://www.medcongimsoc.com" style="color: #007bff;">www.medcongimsoc.com</a>
+            </p>
+          </div>
+          
+          <p>We appreciate your interest in MEDCON'25 and hope to see you at future events.</p>
+          
+          <p><strong>Best regards,</strong><br>
+          Nupura Ajesh & Saja Mohamed<br>
+          Head & Asst. Head of Registration & Attendee Services (Respectively)<br>
+          MEDCON'25 | Georgian International Medical Student Society (GIMSOC)</p>
+          
+          <div class="footer">
+            <p><strong>📧</strong> medconconferencegimsoc@gmail.com | gimsoc21@gmail.com<br>
+            <strong>🌐</strong> www.medcongimsoc.com | www.gimsoc.com</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+
+    const { data, error } = await resend.emails.send({
+      from: 'onboarding@resend.dev',
+      to: [email],
+      subject: "MEDCON'25 - Ticket Application Status Update",
+      html: emailContent,
+    });
+
+    if (error) {
+      console.error('❌ Rejection email sending failed:', error);
+      return { success: false, error };
+    }
+
+    console.log('✅ Rejection email sent successfully to:', email);
+    return { success: true, data };
+  } catch (error) {
+    console.error('❌ Error sending rejection email:', error);
+    return { success: false, error };
+  }
+};
+
 module.exports = {
-  sendTicketConfirmationEmail
+  sendTicketConfirmationEmail,
+  sendTicketApprovalEmail,
+  sendTicketRejectionEmail
 }; 
