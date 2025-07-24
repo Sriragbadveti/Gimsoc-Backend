@@ -91,11 +91,21 @@ router.post("/login", async (req, res) => {
 });
 
 // Get user profile info (protected route)
-router.get("/profile",  async (req, res) => {
+router.get("/profile", dashboardAuthMiddleware, async (req, res) => {
   try {
+    console.log("🔍 Profile request - User ID:", req.user?.id);
+    
+    if (!req.user || !req.user.id) {
+      console.log("❌ No user found in request");
+      return res.status(401).json({ 
+        message: "User not authenticated" 
+      });
+    }
+
     const user = await UserTicket.findById(req.user.id);
 
     if (!user) {
+      console.log("❌ User not found in database:", req.user.id);
       return res.status(404).json({ 
         message: "User not found" 
       });
