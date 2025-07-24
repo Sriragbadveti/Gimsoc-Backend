@@ -58,12 +58,14 @@ module.exports.dashboardAuthMiddleware = async (req, res, next) => {
   try {
     const token = req.cookies.dashboardToken;
     console.log("🔍 Dashboard auth middleware - Token:", token ? "Present" : "Missing");
+    console.log("🔍 All cookies:", req.cookies);
 
     if (!token) {
       console.log("❌ No dashboard token found in cookies");
       return res.status(401).json({ message: "Dashboard access token not found" });
     }
 
+    console.log("🔍 Attempting to verify token with secret:", secret);
     const decoded = jwt.verify(token, secret);
     console.log("🔍 Decoded dashboard token:", decoded);
     
