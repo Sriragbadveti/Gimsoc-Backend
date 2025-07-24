@@ -25,11 +25,11 @@ const upload = multer({
     files: 5 // Maximum 5 files
   },
   fileFilter: (req, file, cb) => {
-    // Allow images and PDFs
-    if (file.mimetype.startsWith('image/') || file.mimetype === 'application/pdf') {
+    // Allow only JPEG and PNG images
+    if (file.mimetype === 'image/jpeg' || file.mimetype === 'image/jpg' || file.mimetype === 'image/png') {
       cb(null, true);
     } else {
-      cb(new Error('Only images and PDFs are allowed'), false);
+      cb(new Error('Only JPEG and PNG images are allowed'), false);
     }
   }
 });
