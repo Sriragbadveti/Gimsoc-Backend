@@ -105,31 +105,73 @@ router.post("/submit", upload.any(), async (req, res) => {
   // --- TICKET LIMIT CHECKS ---
   try {
     const ticketType = req.body.ticketType;
-    let limit = null;
-    let query = {};
+    const subType = req.body.subType;
+    let overallLimit = null;
+    let overallQuery = {};
+    
+    // Overall ticket type limits
     if (ticketType === "Standard+2") {
-      limit = 150;
-      query = { ticketType: "Standard+2" };
+      overallLimit = 150;
+      overallQuery = { ticketType: "Standard+2" };
     } else if (ticketType === "Standard+3") {
-      limit = 300;
-      query = { ticketType: "Standard+3" };
+      overallLimit = 300;
+      overallQuery = { ticketType: "Standard+3" };
     } else if (ticketType === "Standard+4" || ticketType === "Standard") {
       // Some forms may use Standard for Std+4
-      limit = 150;
-      query = { $or: [ { ticketType: "Standard+4" }, { ticketType: "Standard" } ] };
+      overallLimit = 150;
+      overallQuery = { $or: [ { ticketType: "Standard+4" }, { ticketType: "Standard" } ] };
     } else if (ticketType && ticketType.startsWith("Doctor")) {
-      limit = 30;
-      query = { ticketType: { $regex: /^Doctor/i } };
+      overallLimit = 30;
+      overallQuery = { ticketType: { $regex: /^Doctor/i } };
     } else if (ticketType && ticketType.startsWith("International")) {
-      limit = 50;
-      query = { ticketType: { $regex: /^International/i } };
+      overallLimit = 50;
+      overallQuery = { ticketType: { $regex: /^International/i } };
     }
-    if (limit !== null) {
-      const count = await UserTicket.countDocuments(query);
-      if (count >= limit) {
+    
+    // Check overall ticket type limit
+    if (overallLimit !== null) {
+      const overallCount = await UserTicket.countDocuments(overallQuery);
+      if (overallCount >= overallLimit) {
         return res.status(409).json({ message: "Tickets for this category are sold out." });
       }
     }
+    
+    // Internal member type limits
+    let internalLimit = null;
+    let internalQuery = {};
+    
+    if (subType === "Executive") {
+      // GIMSOC Executive & Subcommittee limit across all ticket types
+      internalLimit = 60;
+      internalQuery = { subType: "Executive" };
+    } else if (subType === "TSU") {
+      // TSU limit across all ticket types
+      internalLimit = 50;
+      internalQuery = { subType: "TSU" };
+    } else if (subType === "GEOMEDI") {
+      // GEOMEDI limit only on Standard+2
+      if (ticketType === "Standard+2") {
+        internalLimit = 30;
+        internalQuery = { subType: "GEOMEDI", ticketType: "Standard+2" };
+      }
+    }
+    
+    // Check internal member type limit
+    if (internalLimit !== null) {
+      const internalCount = await UserTicket.countDocuments(internalQuery);
+      if (internalCount >= internalLimit) {
+        let limitMessage = "";
+        if (subType === "Executive") {
+          limitMessage = "Executive & Subcommittee tickets are sold out.";
+        } else if (subType === "TSU") {
+          limitMessage = "TSU student tickets are sold out.";
+        } else if (subType === "GEOMEDI") {
+          limitMessage = "GEOMEDI student tickets for Standard+2 are sold out.";
+        }
+        return res.status(409).json({ message: limitMessage });
+      }
+    }
+    
   } catch (err) {
     console.error("❌ Error checking ticket limits:", err);
     return res.status(500).json({ message: "Error checking ticket limits." });

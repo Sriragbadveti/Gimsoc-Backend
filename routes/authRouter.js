@@ -26,7 +26,7 @@ router.post("/signup", async (req, res) => {
 
     
 
-    await LoginActivity.create({
+    const savedUser = await LoginActivity.create({
       firstname,
       lastname,
       email,
@@ -34,7 +34,7 @@ router.post("/signup", async (req, res) => {
       type: "signup",
     });
 
-    const token = jwt.sign({ id: savedUser._id, role: savedUser.role }, secret, {
+    const token = jwt.sign({ id: savedUser._id }, secret, {
       expiresIn: "1d",
     });
 
@@ -76,7 +76,7 @@ router.post("/login", async (req, res) => {
       type: "login",
     });
 
-    const token = jwt.sign({ id: user._id, role: user.role }, secret, {
+    const token = jwt.sign({ id: user._id }, secret, {
       expiresIn: "1d",
     });
 

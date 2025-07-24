@@ -14,7 +14,10 @@ router.get("/getprofileinfo", authMiddleware, async (req, res) => {
     const user = await UserTicket.findOne({ email }).sort({ createdAt: -1 });
 
     if (!user) {
-      return res.status(404).json({ error: "User not found." });
+      return res.status(404).json({ 
+        error: "No ticket found for this user. Please book a ticket first to access the dashboard.",
+        code: "NO_TICKET"
+      });
     }
 
     res.json({
