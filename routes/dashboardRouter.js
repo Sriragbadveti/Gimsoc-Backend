@@ -2,6 +2,7 @@ const express = require("express");
 const UserTicket = require("../models/userModel");
 const jwt = require("jsonwebtoken");
 const { dashboardAuthMiddleware } = require("../middlewares/authMiddleware");
+const secret = process.env.JWT_SECRET || "your-secret-key";
 
 const router = express.Router();
 
@@ -56,7 +57,7 @@ router.post("/login", async (req, res) => {
         ticketType: user.ticketType,
         ticketCategory: user.ticketCategory
       },
-      process.env.JWT_SECRET || "your-secret-key",
+      secret,
       { expiresIn: "24h" }
     );
 
@@ -143,6 +144,42 @@ router.get("/profile", dashboardAuthMiddleware, async (req, res) => {
     res.status(500).json({ 
       message: "Internal server error" 
     });
+  }
+});
+
+// Check dashboard access route
+router.get("/check-dashboard-access", async (req, res) => {
+  try {
+    const token = req.cookies.token;
+    
+    if (!token) {
+      return res.json({ access: false });
+    }
+
+    const decoded = jwt.verify(token, secret);
+    
+    // Find the user from LoginActivity to get their email
+    const LoginActivity = require("../models/loginActivityModel.js");
+    const loginUser = await LoginActivity.findById(decoded.id);
+    
+    if (!loginUser) {
+      return res.json({ access: false });
+    }
+
+    // Check if user has a ticket
+    const user = await UserTicket.findOne({ email: loginUser.email });
+    
+    if (!user) {
+      return res.json({ access: false });
+    }
+
+    // For now, assume all tickets have dashboard access
+    // This can be enhanced later with approval status
+    res.json({ access: true });
+    
+  } catch (error) {
+    console.error("❌ Check dashboard access error:", error);
+    res.json({ access: false });
   }
 });
 

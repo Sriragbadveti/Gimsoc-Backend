@@ -3,7 +3,7 @@ const router = express.Router();
 const User = require("../models/userModel.js");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const secret = "secret";
+const secret = process.env.JWT_SECRET || "your-secret-key";
 
 module.exports.authMiddleware = async (req, res, next) => {
   try {
@@ -64,7 +64,7 @@ module.exports.dashboardAuthMiddleware = async (req, res, next) => {
       return res.status(401).json({ message: "Dashboard access token not found" });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || "your-secret-key");
+    const decoded = jwt.verify(token, secret);
     console.log("🔍 Decoded dashboard token:", decoded);
     
     // Find the user directly in UserTicket model

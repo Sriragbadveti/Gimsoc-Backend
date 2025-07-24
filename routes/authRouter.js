@@ -4,7 +4,7 @@ const User = require("../models/userModel.js");
 const LoginActivity = require("../models/loginActivityModel.js");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const secret = "secret";
+const secret = process.env.JWT_SECRET || "your-secret-key";
 const authMiddleware = require("../middlewares/authMiddleware.js")
 // SIGNUP ROUTE
 router.post("/signup", async (req, res) => {

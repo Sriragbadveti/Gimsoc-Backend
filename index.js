@@ -75,9 +75,7 @@ app.use("/api/paypal", paypalRouter);
 
 const dashboardRouter = require("./routes/dashboardRouter.js");
 app.use("/api/info", dashboardRouter);
-
-const dashboardAuthRouter = require("./routes/dashboardRouter.js");
-app.use("/api/dashboard", dashboardAuthRouter);
+app.use("/api/dashboard", dashboardRouter);
 
 const adminRouter = require("./routes/adminRouter.js");
 app.use("/api/admin", adminRouter);
