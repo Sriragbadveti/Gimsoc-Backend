@@ -63,6 +63,11 @@ const userTicketSchema = new mongoose.Schema({
   paymentMethod: String,
   discountConfirmation: Boolean,
   workshopPackage: String,
+  paymentStatus: {
+    type: String,
+    enum: ["pending", "completed", "rejected"],
+    default: "pending"
+  },
 
   createdAt: {
     type: Date,

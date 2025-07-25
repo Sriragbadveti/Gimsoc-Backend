@@ -19,10 +19,20 @@ router.options('*', (req, res) => {
 
 router.get("/getalltickets", async (req, res) => {
   try {
+    console.log("🔍 Fetching all tickets...");
     // Assuming your model is named UserTicket
     const tickets = await UserTicket.find()
       .sort({ createdAt: -1 }) // latest tickets first
       .lean();
+
+    console.log("📊 Found tickets:", tickets.length);
+    tickets.forEach((ticket, index) => {
+      console.log(`Ticket ${index + 1}:`, {
+        id: ticket._id,
+        name: ticket.fullName,
+        status: ticket.paymentStatus || "null/undefined"
+      });
+    });
 
     // Map tickets to include all detailed information
     const processedTickets = tickets.map(ticket => ({
@@ -109,15 +119,23 @@ router.patch("/approveticket/:ticketId",  async (req, res) => {
   const { ticketId } = req.params;
   const { paymentStatus } = req.body;
 
+  console.log("🔧 Updating ticket status:", { ticketId, paymentStatus });
+
   try {
     const ticket = await UserTicket.findById(ticketId);
 
     if (!ticket) {
+      console.log("❌ Ticket not found:", ticketId);
       return res.status(404).json({ message: "Ticket not found" });
     }
 
+    console.log("📊 Current ticket status:", ticket.paymentStatus);
+    console.log("📊 New status to set:", paymentStatus);
+
     ticket.paymentStatus = paymentStatus;
     await ticket.save();
+
+    console.log("✅ Ticket status updated successfully. New status:", ticket.paymentStatus);
 
     // Send email based on status
     if (paymentStatus === "completed") {
