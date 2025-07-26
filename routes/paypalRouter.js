@@ -28,25 +28,39 @@ router.post("/create-order", async (req, res) => {
   try {
     const { amount } = req.body;
 
+    console.log("🔍 Creating PayPal order with amount:", amount);
+
     if (!amount || isNaN(amount)) {
+      console.log("❌ Invalid amount provided:", amount);
       return res.status(400).json({ error: "Invalid or missing amount" });
     }
 
+    // Check if PayPal credentials are configured
+    if (!process.env.PAYPAL_CLIENT_ID || !process.env.PAYPAL_CLIENT_SECRET) {
+      console.log("❌ PayPal credentials not configured");
+      return res.status(500).json({ error: "PayPal credentials not configured" });
+    }
+
     const accessToken = await generateAccessToken();
+    console.log("✅ PayPal access token generated");
+
+    const orderData = {
+      intent: "CAPTURE",
+      purchase_units: [
+        {
+          amount: {
+            currency_code: "USD",
+            value: amount.toString(),
+          },
+        },
+      ],
+    };
+
+    console.log("🔍 Creating order with data:", orderData);
 
     const response = await axios.post(
       `${process.env.PAYPAL_API}/v2/checkout/orders`,
-      {
-        intent: "CAPTURE",
-        purchase_units: [
-          {
-            amount: {
-              currency_code: "USD",
-              value: amount.toString(), // 👈 Ensure it's a string
-            },
-          },
-        ],
-      },
+      orderData,
       {
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -55,11 +69,21 @@ router.post("/create-order", async (req, res) => {
       }
     );
 
+    console.log("✅ PayPal order created successfully:", response.data.id);
     res.json({ id: response.data.id });
   } catch (error) {
-  console.error("❌ Error creating PayPal order:", error.response?.data || error.message);
-  res.status(500).json({ error: "Failed to create PayPal order", details: error.response?.data || error.message });
-}
+    console.error("❌ Error creating PayPal order:", error.response?.data || error.message);
+    console.error("❌ Error details:", {
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      message: error.message
+    });
+    res.status(500).json({ 
+      error: "Failed to create PayPal order", 
+      details: error.response?.data || error.message 
+    });
+  }
 });
 
 
