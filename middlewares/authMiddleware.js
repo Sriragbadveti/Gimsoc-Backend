@@ -78,6 +78,14 @@ module.exports.dashboardAuthMiddleware = async (req, res, next) => {
       return res.status(401).json({ message: "Invalid dashboard token" });
     }
 
+    // Check if ticket is approved by checking payment status
+    if (user.paymentStatus !== "completed") {
+      console.log("❌ Ticket not approved for user:", user.email, "Status:", user.paymentStatus);
+      return res.status(403).json({ 
+        message: "Your ticket is not yet approved. Please wait for approval email." 
+      });
+    }
+
     console.log("✅ Dashboard auth successful for user:", user.email);
 
     req.user = {

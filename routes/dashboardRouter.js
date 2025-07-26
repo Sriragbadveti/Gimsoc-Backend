@@ -38,12 +38,9 @@ router.post("/login", async (req, res) => {
       });
     }
 
-    // Check if ticket is approved (we'll add an approval status field later)
-    // For now, we'll assume all tickets are approved
-    const isApproved = true; // This will be replaced with actual approval logic
-
-    if (!isApproved) {
-      console.log("❌ Ticket not approved for user:", email);
+    // Check if ticket is approved by checking payment status
+    if (user.paymentStatus !== "completed") {
+      console.log("❌ Ticket not approved for user:", email, "Status:", user.paymentStatus);
       return res.status(403).json({ 
         message: "Your ticket is not yet approved. Please wait for approval email." 
       });
@@ -116,6 +113,15 @@ router.get("/check-auth", async (req, res) => {
       return res.status(401).json({ authenticated: false, message: "User not found" });
     }
 
+    // Check if ticket is approved by checking payment status
+    if (user.paymentStatus !== "completed") {
+      console.log("❌ Ticket not approved for user:", user.email, "Status:", user.paymentStatus);
+      return res.status(403).json({ 
+        authenticated: false, 
+        message: "Your ticket is not yet approved. Please wait for approval email." 
+      });
+    }
+
     res.json({ 
       authenticated: true, 
       user: {
@@ -132,28 +138,16 @@ router.get("/check-auth", async (req, res) => {
   }
 });
 
-// Get user profile info (temporarily unprotected for testing)
-router.get("/profile", async (req, res) => {
+// Get user profile info (protected with dashboard auth middleware)
+router.get("/profile", dashboardAuthMiddleware, async (req, res) => {
   try {
-    console.log("🔍 Profile request received");
-    console.log("🔍 Request cookies:", req.cookies);
-    console.log("🔍 Request query:", req.query);
+    console.log("🔍 Profile request received for user:", req.user.email);
 
-    // Get user email from query parameters or cookies
-    const userEmail = req.query.email || req.cookies.userEmail;
-    
-    if (!userEmail) {
-      console.log("❌ No user email found in request");
-      return res.status(400).json({ message: "User email is required" });
-    }
-
-    console.log("🔍 Looking for user with email:", userEmail);
-
-    // Find the user by email in the database
-    const user = await UserTicket.findOne({ email: userEmail }).lean();
+    // Find the user by ID from the authenticated request
+    const user = await UserTicket.findById(req.user.id).lean();
     
     if (!user) {
-      console.log("❌ User not found in database with email:", userEmail);
+      console.log("❌ User not found in database with ID:", req.user.id);
       return res.status(404).json({ message: "User not found" });
     }
 
@@ -197,8 +191,12 @@ router.get("/check-dashboard-access", async (req, res) => {
       return res.json({ access: false });
     }
 
-    // For now, assume all tickets have dashboard access
-    // This can be enhanced later with approval status
+    // Check if ticket is approved by checking payment status
+    if (user.paymentStatus !== "completed") {
+      console.log("❌ Ticket not approved for user:", user.email, "Status:", user.paymentStatus);
+      return res.json({ access: false, message: "Ticket not approved" });
+    }
+    
     res.json({ access: true });
     
   } catch (error) {
