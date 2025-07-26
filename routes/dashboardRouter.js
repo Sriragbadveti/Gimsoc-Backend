@@ -161,16 +161,23 @@ router.get("/check-auth", async (req, res) => {
   }
 });
 
-// Get user profile info (protected with dashboard auth middleware)
-router.get("/profile", dashboardAuthMiddleware, async (req, res) => {
+// Get user profile info (unprotected - uses email parameter)
+router.get("/profile", async (req, res) => {
   try {
-    console.log("🔍 Profile request received for user:", req.user.email);
+    const { email } = req.query;
+    
+    if (!email) {
+      console.log("❌ No email provided in query parameters");
+      return res.status(400).json({ message: "Email parameter is required" });
+    }
 
-    // Find the user by ID from the authenticated request
-    const user = await UserTicket.findById(req.user.id).lean();
+    console.log("🔍 Profile request received for email:", email);
+
+    // Find the user by email
+    const user = await UserTicket.findOne({ email }).lean();
     
     if (!user) {
-      console.log("❌ User not found in database with ID:", req.user.id);
+      console.log("❌ User not found in database with email:", email);
       return res.status(404).json({ message: "User not found" });
     }
 
