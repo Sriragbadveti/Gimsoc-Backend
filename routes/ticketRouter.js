@@ -185,6 +185,15 @@ router.post("/submit", upload.any(), async (req, res) => {
       if (existing) {
         return res.status(409).json({ message: "This email has already been used to book a ticket." });
       }
+      
+      // Additional check for recent submissions (within last 30 seconds) to prevent duplicates
+      const recentSubmission = await UserTicket.findOne({
+        email,
+        createdAt: { $gte: new Date(Date.now() - 30000) } // Last 30 seconds
+      });
+      if (recentSubmission) {
+        return res.status(409).json({ message: "A ticket submission is already in progress. Please wait a moment and try again." });
+      }
     }
   } catch (err) {
     console.error("❌ Error checking email uniqueness:", err);
@@ -398,8 +407,9 @@ router.post("/submit", upload.any(), async (req, res) => {
     await Promise.race([savePromise, timeoutPromise]);
     console.log("✅ Ticket saved successfully with ID:", newTicket._id);
     
-    // Send confirmation email
+    // Send confirmation email only after successful database save
     console.log("📧 Sending confirmation email...");
+    let emailSent = false;
     try {
       const emailResult = await sendTicketConfirmationEmail({
         fullName: newTicket.fullName,
@@ -411,6 +421,7 @@ router.post("/submit", upload.any(), async (req, res) => {
       
       if (emailResult.success) {
         console.log("✅ Confirmation email sent successfully");
+        emailSent = true;
       } else {
         console.log("⚠️ Email sending failed, but ticket was saved:", emailResult.error);
       }
@@ -419,7 +430,11 @@ router.post("/submit", upload.any(), async (req, res) => {
     }
     
     console.log("🎉 Sending success response...");
-    res.status(201).json({ message: "Ticket submitted successfully", id: newTicket._id });
+    res.status(201).json({ 
+      message: "Ticket submitted successfully", 
+      id: newTicket._id,
+      emailSent: emailSent 
+    });
     console.log("✅ Response sent successfully");
   } catch (error) {
     console.error("❌ Error in ticket submission:", error);

@@ -6,6 +6,18 @@ const secret = process.env.JWT_SECRET || "your-secret-key";
 
 const router = express.Router();
 
+// Test endpoint to check cookies
+router.get("/test-cookies", (req, res) => {
+  console.log("🍪 Test cookies endpoint hit");
+  console.log("🍪 All cookies:", req.cookies);
+  console.log("🍪 Dashboard token:", req.cookies.dashboardToken ? "Present" : "Missing");
+  res.json({ 
+    message: "Cookie test", 
+    hasDashboardToken: !!req.cookies.dashboardToken,
+    allCookies: Object.keys(req.cookies)
+  });
+});
+
 // Dashboard login route
 router.post("/login", async (req, res) => {
   try {
@@ -63,12 +75,14 @@ router.post("/login", async (req, res) => {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
-      domain: process.env.NODE_ENV === "production" ? ".medcongimsoc.com" : undefined,
+      // Remove domain restriction for now to test
+      // domain: process.env.NODE_ENV === "production" ? ".medcongimsoc.com" : undefined,
       path: "/",
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
     });
 
     console.log("✅ Dashboard login successful for user:", email);
+    console.log("🍪 Cookie set with token length:", token.length);
 
     res.json({
       message: "Login successful",
@@ -97,21 +111,29 @@ router.get("/check-auth", async (req, res) => {
 
     const token = req.cookies.dashboardToken;
     if (!token) {
+      console.log("❌ No dashboard token found in cookies");
       return res.status(401).json({ authenticated: false, message: "No token found" });
     }
 
+    console.log("🔍 Token found, attempting to verify...");
     let decoded;
     try {
       decoded = jwt.verify(token, secret);
+      console.log("🔍 Token verified successfully, userId:", decoded.userId);
     } catch (err) {
+      console.log("❌ Token verification failed:", err.message);
       return res.status(401).json({ authenticated: false, message: "Invalid token" });
     }
 
     // Find the user by decoded userId
+    console.log("🔍 Looking for user with ID:", decoded.userId);
     const user = await UserTicket.findById(decoded.userId).lean();
     if (!user) {
+      console.log("❌ User not found in database with ID:", decoded.userId);
       return res.status(401).json({ authenticated: false, message: "User not found" });
     }
+
+    console.log("✅ User found:", { email: user.email, paymentStatus: user.paymentStatus });
 
     // Check if ticket is approved by checking payment status
     if (user.paymentStatus !== "completed") {
@@ -122,6 +144,7 @@ router.get("/check-auth", async (req, res) => {
       });
     }
 
+    console.log("✅ Ticket approved, sending success response");
     res.json({ 
       authenticated: true, 
       user: {
