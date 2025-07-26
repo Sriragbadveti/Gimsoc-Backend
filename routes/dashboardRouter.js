@@ -95,53 +95,33 @@ router.get("/profile", async (req, res) => {
   try {
     console.log("🔍 Profile request received");
     console.log("🔍 Request cookies:", req.cookies);
-    
-    // For now, let's return a mock user profile for testing
-    const mockUser = {
-      id: "mock-user-id",
-      email: "test@example.com",
-      fullName: "Test User",
-      ticketType: "Standard",
-      ticketCategory: "Individual",
-      subType: "Regular",
-      whatsapp: "+1234567890",
-      universityName: "Test University",
-      semester: "Final Year",
-      medicalQualification: "MBBS",
-      specialty: "General Medicine",
-      currentWorkplace: "Test Hospital",
-      countryOfPractice: "Test Country",
-      nationality: "Test Nationality",
-      countryOfResidence: "Test Country",
-      passportNumber: "TEST123456",
-      needsVisaSupport: false,
-      emergencyContactName: "Emergency Contact",
-      emergencyContactRelationship: "Parent",
-      emergencyContactPhone: "+1234567890",
-      foodPreference: "Vegetarian",
-      dietaryRestrictions: "None",
-      accessibilityNeeds: "None",
-      headshotUrl: "",
-      paymentProofUrl: "",
-      createdAt: new Date().toISOString()
-    };
 
-    res.json({
-      user: mockUser
-    });
+    // Get JWT from cookies
+    const token = req.cookies.dashboardToken;
+    if (!token) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    let decoded;
+    try {
+      decoded = jwt.verify(token, secret);
+    } catch (err) {
+      return res.status(401).json({ message: "Invalid token" });
+    }
 
+    // Find the user by decoded userId
+    const user = await UserTicket.findById(decoded.userId).lean();
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    // Remove sensitive fields
+    delete user.password;
+    delete user.dashboardPassword;
+
+    res.json({ user });
   } catch (error) {
     console.error("❌ Get profile error:", error);
-    
-    if (error.name === "JsonWebTokenError") {
-      return res.status(401).json({ 
-        message: "Invalid token" 
-      });
-    }
-    
-    res.status(500).json({ 
-      message: "Internal server error" 
-    });
+    res.status(500).json({ message: "Internal server error" });
   }
 });
 
