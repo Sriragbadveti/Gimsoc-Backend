@@ -132,34 +132,28 @@ router.get("/check-auth", async (req, res) => {
   }
 });
 
-// Get user profile info (protected endpoint)
+// Get user profile info (temporarily unprotected for testing)
 router.get("/profile", async (req, res) => {
   try {
     console.log("🔍 Profile request received");
     console.log("🔍 Request cookies:", req.cookies);
+    console.log("🔍 Request query:", req.query);
 
-    // Get JWT from cookies
-    const token = req.cookies.dashboardToken;
-    console.log("🔍 Dashboard token found:", !!token);
+    // Get user email from query parameters or cookies
+    const userEmail = req.query.email || req.cookies.userEmail;
     
-    if (!token) {
-      console.log("❌ No dashboard token found in cookies");
-      return res.status(401).json({ message: "Not authenticated" });
-    }
-    
-    let decoded;
-    try {
-      decoded = jwt.verify(token, secret);
-      console.log("🔍 Token decoded successfully:", { userId: decoded.userId, email: decoded.email });
-    } catch (err) {
-      console.log("❌ Token verification failed:", err.message);
-      return res.status(401).json({ message: "Invalid token" });
+    if (!userEmail) {
+      console.log("❌ No user email found in request");
+      return res.status(400).json({ message: "User email is required" });
     }
 
-    // Find the user by decoded userId
-    const user = await UserTicket.findById(decoded.userId).lean();
+    console.log("🔍 Looking for user with email:", userEmail);
+
+    // Find the user by email in the database
+    const user = await UserTicket.findOne({ email: userEmail }).lean();
+    
     if (!user) {
-      console.log("❌ User not found in database with ID:", decoded.userId);
+      console.log("❌ User not found in database with email:", userEmail);
       return res.status(404).json({ message: "User not found" });
     }
 
@@ -170,6 +164,7 @@ router.get("/profile", async (req, res) => {
     delete user.dashboardPassword;
 
     res.json({ user });
+
   } catch (error) {
     console.error("❌ Get profile error:", error);
     res.status(500).json({ message: "Internal server error" });
