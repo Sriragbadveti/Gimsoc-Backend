@@ -66,6 +66,8 @@ router.post("/login", async (req, res) => {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
+      domain: process.env.NODE_ENV === "production" ? ".medcongimsoc.com" : undefined,
+      path: "/",
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
     });
 
@@ -90,7 +92,47 @@ router.post("/login", async (req, res) => {
   }
 });
 
-// Get user profile info (temporarily unprotected for testing)
+// Check dashboard authentication status
+router.get("/check-auth", async (req, res) => {
+  try {
+    console.log("🔍 Auth check request received");
+    console.log("🔍 Request cookies:", req.cookies);
+
+    const token = req.cookies.dashboardToken;
+    if (!token) {
+      return res.status(401).json({ authenticated: false, message: "No token found" });
+    }
+
+    let decoded;
+    try {
+      decoded = jwt.verify(token, secret);
+    } catch (err) {
+      return res.status(401).json({ authenticated: false, message: "Invalid token" });
+    }
+
+    // Find the user by decoded userId
+    const user = await UserTicket.findById(decoded.userId).lean();
+    if (!user) {
+      return res.status(401).json({ authenticated: false, message: "User not found" });
+    }
+
+    res.json({ 
+      authenticated: true, 
+      user: {
+        id: user._id,
+        email: user.email,
+        fullName: user.fullName,
+        ticketType: user.ticketType,
+        ticketCategory: user.ticketCategory,
+      }
+    });
+  } catch (error) {
+    console.error("❌ Auth check error:", error);
+    res.status(500).json({ authenticated: false, message: "Internal server error" });
+  }
+});
+
+// Get user profile info (protected endpoint)
 router.get("/profile", async (req, res) => {
   try {
     console.log("🔍 Profile request received");
@@ -98,21 +140,30 @@ router.get("/profile", async (req, res) => {
 
     // Get JWT from cookies
     const token = req.cookies.dashboardToken;
+    console.log("🔍 Dashboard token found:", !!token);
+    
     if (!token) {
+      console.log("❌ No dashboard token found in cookies");
       return res.status(401).json({ message: "Not authenticated" });
     }
+    
     let decoded;
     try {
       decoded = jwt.verify(token, secret);
+      console.log("🔍 Token decoded successfully:", { userId: decoded.userId, email: decoded.email });
     } catch (err) {
+      console.log("❌ Token verification failed:", err.message);
       return res.status(401).json({ message: "Invalid token" });
     }
 
     // Find the user by decoded userId
     const user = await UserTicket.findById(decoded.userId).lean();
     if (!user) {
+      console.log("❌ User not found in database with ID:", decoded.userId);
       return res.status(404).json({ message: "User not found" });
     }
+
+    console.log("✅ User found:", { email: user.email, fullName: user.fullName });
 
     // Remove sensitive fields
     delete user.password;
