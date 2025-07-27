@@ -89,8 +89,7 @@ app.use("/api/dashboard", dashboardRouter);
 const adminRouter = require("./routes/adminRouter.js");
 app.use("/api/admin", adminRouter);
 
-const adminAuthRouter = require("./routes/adminAuthRouter.js");
-app.use("/api/admin-auth", adminAuthRouter);
+
 
 const abstractRouter = require("./routes/abstractRouter.js");
 app.use("/api/abstract", abstractRouter);
