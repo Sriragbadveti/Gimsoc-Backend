@@ -129,4 +129,102 @@ router.get('/profile', adminAuthMiddleware, async (req, res) => {
   }
 });
 
+// Setup admin users (one-time use)
+router.post('/setup-admins', async (req, res) => {
+  try {
+    console.log("🔧 Setting up admin users...");
+
+    const adminUsers = [
+      {
+        email: "medconconferencegimsoc@gmail.com",
+        password: "medcon25@admin",
+        role: "super_admin"
+      },
+      {
+        email: "gunchashaikh11@gmail.com",
+        password: "medcon25@admin",
+        role: "admin"
+      },
+      {
+        email: "muhamadbarakat20@gmail.com",
+        password: "medcon25@admin",
+        role: "admin"
+      },
+      {
+        email: "nupuraajesh@gmail.com",
+        password: "medcon25@admin",
+        role: "admin"
+      },
+      {
+        email: "saja.mohamed.1@iliauni.edu.ge",
+        password: "medcon25@admin",
+        role: "admin"
+      },
+      {
+        email: "nikhilalizaby@gmail.com",
+        password: "medcon25@admin",
+        role: "admin"
+      },
+      {
+        email: "mennah.emam@gmail.com",
+        password: "medcon25@admin",
+        role: "admin"
+      },
+      {
+        email: "mandrika311@gmail.com",
+        password: "medcon25@admin",
+        role: "admin"
+      },
+      {
+        email: "Badvetisrirag@gmail.com",
+        password: "medcon25@admin",
+        role: "admin"
+      }
+    ];
+
+    const createdAdmins = [];
+    const existingAdmins = [];
+
+    for (const adminData of adminUsers) {
+      // Check if admin already exists
+      const existingAdmin = await Admin.findOne({ email: adminData.email });
+      
+      if (existingAdmin) {
+        console.log(`⚠️  Admin already exists: ${adminData.email}`);
+        existingAdmins.push(adminData.email);
+        continue;
+      }
+
+      // Hash password
+      const hashedPassword = await bcrypt.hash(adminData.password, 12);
+
+      // Create admin user
+      const admin = new Admin({
+        email: adminData.email,
+        password: hashedPassword,
+        role: adminData.role,
+        isActive: true
+      });
+
+      await admin.save();
+      console.log(`✅ Created admin: ${adminData.email} (${adminData.role})`);
+      createdAdmins.push(adminData.email);
+    }
+
+    console.log("🎉 Admin setup completed!");
+
+    res.status(200).json({
+      message: "Admin setup completed successfully",
+      created: createdAdmins,
+      existing: existingAdmins,
+      totalCreated: createdAdmins.length,
+      totalExisting: existingAdmins.length
+    });
+
+  } catch (error) {
+    console.error("❌ Admin setup error:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
 module.exports = router; 
