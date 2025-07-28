@@ -1,10 +1,7 @@
-const { TransactionalEmailsApi, SendSmtpEmail } = require('@getbrevo/brevo');
+const { Resend } = require('resend');
 const QRManager = require('./qrManager');
 
-// Initialize Brevo API
-const apiInstance = new TransactionalEmailsApi();
-apiInstance.setApiKey(0, process.env.BREVO_API_KEY);
-
+const resend = new Resend(process.env.RESEND_API_KEY);
 const qrManager = new QRManager();
 
 const sendTicketConfirmationEmail = async (userData) => {
@@ -281,24 +278,27 @@ Category: ${ticketCategory}
       </html>
     `;
 
-    console.log('📧 Attempting to send email with Brevo...');
-    console.log('📧 API Key exists:', !!process.env.BREVO_API_KEY);
-    console.log('📧 API Key length:', process.env.BREVO_API_KEY ? process.env.BREVO_API_KEY.length : 0);
-    console.log('📧 From:', 'MEDCON 2025 <medconconferencegimsoc@gmail.com>');
+    console.log('📧 Attempting to send email with Resend...');
+    console.log('📧 API Key exists:', !!process.env.RESEND_API_KEY);
+    console.log('📧 From:', 'MEDCON 2025 <onboarding@resend.dev>');
     console.log('📧 To:', email);
     console.log('📧 Subject:', "GIMSOC's MEDCON'25 – Payment Confirmation");
 
-    // Create Brevo email object
-    const sendSmtpEmail = new SendSmtpEmail();
-    sendSmtpEmail.to = [{ email: email, name: fullName }];
-    sendSmtpEmail.subject = "GIMSOC's MEDCON'25 – Payment Confirmation";
-    sendSmtpEmail.htmlContent = emailContent;
-    sendSmtpEmail.sender = { name: "MEDCON 2025", email: "medconconferencegimsoc@gmail.com" };
+    // Resend API call - send directly to the user using onboarding address
+    const { data, error } = await resend.emails.send({
+      from: 'onboarding@resend.dev',
+      to: [email],
+      subject: "GIMSOC's MEDCON'25 – Payment Confirmation",
+      html: emailContent
+    });
 
-    const data = await apiInstance.sendTransacEmail(sendSmtpEmail);
+    if (error) {
+      console.error('❌ Resend error:', error);
+      return { success: false, error };
+    }
 
     console.log('✅ Confirmation email sent successfully to:', email);
-    console.log('✅ Brevo response data:', data);
+    console.log('✅ Resend response:', data);
     return { success: true, data };
   } catch (error) {
     console.error('❌ Error sending confirmation email:', error);
@@ -476,14 +476,18 @@ const sendTicketApprovalEmail = async (userData) => {
       </html>
     `;
 
-    // Create Brevo email object
-    const sendSmtpEmail = new SendSmtpEmail();
-    sendSmtpEmail.to = [{ email: email, name: fullName }];
-    sendSmtpEmail.subject = "MEDCON'25 - Your Ticket Has Been Approved! 🎉";
-    sendSmtpEmail.htmlContent = emailContent;
-    sendSmtpEmail.sender = { name: "MEDCON 2025", email: "medconconferencegimsoc@gmail.com" };
+    // Resend API call - send directly to the user using onboarding address
+    const { data, error } = await resend.emails.send({
+      from: 'onboarding@resend.dev',
+      to: [email],
+      subject: "MEDCON'25 - Your Ticket Has Been Approved! 🎉",
+      html: emailContent
+    });
 
-    const data = await apiInstance.sendTransacEmail(sendSmtpEmail);
+    if (error) {
+      console.error('❌ Resend error:', error);
+      return { success: false, error };
+    }
 
     console.log('✅ Approval email sent successfully to:', email);
     return { success: true, data };
@@ -662,14 +666,18 @@ const sendTicketRejectionEmail = async (userData) => {
       </html>
     `;
 
-    // Create Brevo email object
-    const sendSmtpEmail = new SendSmtpEmail();
-    sendSmtpEmail.to = [{ email: email, name: fullName }];
-    sendSmtpEmail.subject = "MEDCON'25 - Ticket Application Status Update";
-    sendSmtpEmail.htmlContent = emailContent;
-    sendSmtpEmail.sender = { name: "MEDCON 2025", email: "medconconferencegimsoc@gmail.com" };
+    // Resend API call - send directly to the user using onboarding address
+    const { data, error } = await resend.emails.send({
+      from: 'onboarding@resend.dev',
+      to: [email],
+      subject: "MEDCON'25 - Ticket Application Status Update",
+      html: emailContent
+    });
 
-    const data = await apiInstance.sendTransacEmail(sendSmtpEmail);
+    if (error) {
+      console.error('❌ Resend error:', error);
+      return { success: false, error };
+    }
 
     console.log('✅ Rejection email sent successfully to:', email);
     return { success: true, data };
