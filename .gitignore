@@ -40,4 +40,4 @@ build/
 *.db
 
 # Coverage reports (if testing added later)
-coverage/
+coverage/google-credentials.json
