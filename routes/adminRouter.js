@@ -398,6 +398,10 @@ router.post("/export-to-sheets", async (req, res) => {
       });
     }
 
+    // Filter out rejected tickets
+    const validTickets = tickets.filter(ticket => ticket.paymentStatus !== "rejected");
+    console.log(`📊 Filtered tickets: ${validTickets.length} valid out of ${tickets.length} total`);
+    
     // Prepare data for export
     const headers = [
       "Ticket ID",
@@ -434,7 +438,7 @@ router.post("/export-to-sheets", async (req, res) => {
       "Updated At"
     ];
 
-    const rows = tickets.map(ticket => [
+    const rows = validTickets.map(ticket => [
       ticket._id || ticket.id,
       ticket.fullName || "",
       ticket.email || "",
@@ -582,7 +586,7 @@ router.post("/export-to-sheets", async (req, res) => {
     const sheetUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit#gid=0`;
     const specificSheetUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit#gid=0&range=${sheetName}!A1`;
     
-    console.log(`✅ Successfully exported ${rows.length} tickets to Google Sheets`);
+    console.log(`✅ Successfully exported ${rows.length} valid tickets to Google Sheets`);
     console.log(`📊 Sheet URL: ${sheetUrl}`);
     console.log(`📊 Sheet name: ${sheetName}`);
     console.log(`📊 Data range: A1:${String.fromCharCode(65 + headers.length - 1)}${rows.length + 1}`);
@@ -590,11 +594,14 @@ router.post("/export-to-sheets", async (req, res) => {
     res.json({
       success: true,
       exportedCount: rows.length,
+      totalTickets: tickets.length,
+      validTickets: validTickets.length,
+      rejectedTickets: tickets.length - validTickets.length,
       sheetUrl: sheetUrl,
       specificSheetUrl: specificSheetUrl,
       sheetName: sheetName,
       dataRange: `A1:${String.fromCharCode(65 + headers.length - 1)}${rows.length + 1}`,
-      message: `Successfully exported ${rows.length} tickets to Google Sheets in sheet '${sheetName}'`
+      message: `Successfully exported ${rows.length} valid tickets to Google Sheets in sheet '${sheetName}' (excluded ${tickets.length - validTickets.length} rejected tickets)`
     });
 
   } catch (error) {
