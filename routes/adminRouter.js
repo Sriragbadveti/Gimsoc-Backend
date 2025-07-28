@@ -34,6 +34,65 @@ if (process.env.GOOGLE_CREDENTIALS_BASE64) {
   });
 }
 
+// Test endpoint for debugging
+router.get("/test-sheets", async (req, res) => {
+  try {
+    console.log("🧪 Testing Google Sheets connection...");
+    
+    // Test environment variables
+    console.log("🔑 Environment check:");
+    console.log("- GOOGLE_CREDENTIALS_BASE64 exists:", !!process.env.GOOGLE_CREDENTIALS_BASE64);
+    console.log("- GOOGLE_SHEET_ID exists:", !!process.env.GOOGLE_SHEET_ID);
+    
+    if (!process.env.GOOGLE_CREDENTIALS_BASE64) {
+      return res.status(500).json({ error: "GOOGLE_CREDENTIALS_BASE64 not found" });
+    }
+    
+    if (!process.env.GOOGLE_SHEET_ID) {
+      return res.status(500).json({ error: "GOOGLE_SHEET_ID not found" });
+    }
+    
+    // Test credentials parsing
+    try {
+      const credentials = JSON.parse(Buffer.from(process.env.GOOGLE_CREDENTIALS_BASE64, 'base64').toString());
+      console.log("✅ Credentials parsed successfully");
+      console.log("- Client email:", credentials.client_email);
+    } catch (parseError) {
+      console.error("❌ Failed to parse credentials:", parseError);
+      return res.status(500).json({ error: "Failed to parse credentials: " + parseError.message });
+    }
+    
+    // Test Google Sheets API connection
+    const sheets = google.sheets({ version: "v4", auth });
+    
+    try {
+      const response = await sheets.spreadsheets.get({
+        spreadsheetId: process.env.GOOGLE_SHEET_ID
+      });
+      console.log("✅ Successfully connected to Google Sheets");
+      console.log("- Spreadsheet title:", response.data.properties.title);
+      console.log("- Number of sheets:", response.data.sheets.length);
+      
+      res.json({
+        success: true,
+        message: "Google Sheets connection successful",
+        spreadsheetTitle: response.data.properties.title,
+        sheetCount: response.data.sheets.length
+      });
+    } catch (sheetsError) {
+      console.error("❌ Google Sheets API error:", sheetsError);
+      return res.status(500).json({ 
+        error: "Google Sheets API error: " + sheetsError.message,
+        details: sheetsError.response?.data || sheetsError
+      });
+    }
+    
+  } catch (error) {
+    console.error("❌ Test endpoint error:", error);
+    res.status(500).json({ error: "Test failed: " + error.message });
+  }
+});
+
 // GET ALL TICKETS for ADMIN dashboard
 router.get("/getalltickets", async (req, res) => {
   try {
@@ -417,6 +476,38 @@ router.post("/export-to-sheets", async (req, res) => {
     console.log(`📊 Using sheet name: ${sheetName}`);
     
     try {
+      // First, check if the sheet exists
+      console.log("🔍 Checking if sheet exists...");
+      const spreadsheetInfo = await sheets.spreadsheets.get({
+        spreadsheetId
+      });
+      
+      const sheetExists = spreadsheetInfo.data.sheets.some(sheet => 
+        sheet.properties.title === sheetName
+      );
+      
+      if (!sheetExists) {
+        console.log("📄 Sheet doesn't exist, creating new sheet...");
+        // Create the sheet
+        await sheets.spreadsheets.batchUpdate({
+          spreadsheetId,
+          resource: {
+            requests: [
+              {
+                addSheet: {
+                  properties: {
+                    title: sheetName
+                  }
+                }
+              }
+            ]
+          }
+        });
+        console.log("✅ New sheet created successfully");
+      } else {
+        console.log("✅ Sheet already exists");
+      }
+      
       // Clear existing data and add headers
       console.log("🧹 Clearing existing data...");
       await sheets.spreadsheets.values.clear({
@@ -438,9 +529,20 @@ router.post("/export-to-sheets", async (req, res) => {
       console.log("✅ Data written successfully");
     } catch (sheetError) {
       console.error("❌ Sheet operation failed:", sheetError);
+      console.error("❌ Error details:", {
+        message: sheetError.message,
+        code: sheetError.code,
+        status: sheetError.status,
+        response: sheetError.response?.data
+      });
       return res.status(500).json({ 
         success: false, 
-        message: "Sheet operation failed: " + sheetError.message 
+        message: "Sheet operation failed: " + sheetError.message,
+        details: {
+          code: sheetError.code,
+          status: sheetError.status,
+          response: sheetError.response?.data
+        }
       });
     }
 
