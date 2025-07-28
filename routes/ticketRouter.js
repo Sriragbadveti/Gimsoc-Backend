@@ -62,6 +62,30 @@ router.get("/test", (req, res) => {
   res.json({ message: "Ticket router is working", timestamp: new Date().toISOString() });
 });
 
+// Get gala dinner availability
+router.get("/gala-availability", async (req, res) => {
+  try {
+    // Count all tickets with gala dinner selected (excluding rejected ones)
+    const galaCount = await UserTicket.countDocuments({
+      galaDinner: { $regex: /Yes/i },
+      paymentStatus: { $ne: "rejected" }
+    });
+    
+    const galaLimit = 150;
+    const available = galaLimit - galaCount;
+    
+    res.json({
+      totalLimit: galaLimit,
+      currentCount: galaCount,
+      available: available,
+      isAvailable: available > 0
+    });
+  } catch (error) {
+    console.error("❌ Error checking gala availability:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
 // Get ticket data by ID
 router.get("/ticket/:ticketId", async (req, res) => {
   try {
@@ -177,6 +201,21 @@ router.post("/submit", upload.any(), async (req, res) => {
           limitMessage = "GEOMEDI student tickets for Standard+2 are sold out.";
         }
         return res.status(409).json({ message: limitMessage });
+      }
+    }
+    
+    // --- GALA DINNER LIMIT CHECK ---
+    const galaDinner = req.body.galaDinner;
+    if (galaDinner && galaDinner.includes("Yes")) {
+      // Count all tickets with gala dinner selected (excluding rejected ones)
+      const galaCount = await UserTicket.countDocuments({
+        galaDinner: { $regex: /Yes/i },
+        paymentStatus: { $ne: "rejected" }
+      });
+      
+      const galaLimit = 150;
+      if (galaCount >= galaLimit) {
+        return res.status(409).json({ message: "Gala dinner tickets are sold out." });
       }
     }
     
@@ -354,6 +393,7 @@ router.post("/submit", upload.any(), async (req, res) => {
       foodPreference,
       dietaryRestrictions,
       accessibilityNeeds,
+      galaDinner: req.body.galaDinner || null, // Add gala dinner field
       paymentMethod,
       discountConfirmation: toBool(discountConfirmation),
       infoAccurate: toBool(infoAccurate),

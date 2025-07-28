@@ -47,6 +47,7 @@ const userTicketSchema = new mongoose.Schema({
   foodPreference: String,
   dietaryRestrictions: String,
   accessibilityNeeds: String,
+  galaDinner: String, // Add gala dinner field
 
   isTsuStudent: Boolean,
   tsuEmail: String,
