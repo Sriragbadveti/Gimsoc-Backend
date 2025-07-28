@@ -6,7 +6,6 @@ const { v2: cloudinary } = require("cloudinary");
 const streamifier = require("streamifier");
 const UserTicket = require("../models/userModel");
 const { sendTicketConfirmationEmail } = require("../utils/emailService");
-const mongoose = require('mongoose');
 
 const router = express.Router();
 
@@ -58,120 +57,6 @@ const uploadToCloudinary = (file, folder) => {
   });
 };
 
-// Add this function before the ticket submission route
-async function bookTicketWithTransaction(ticketData) {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-  
-  try {
-    const { ticketType, subType } = ticketData;
-    
-    // Get ticket limits
-    let overallLimit = null;
-    let overallQuery = {};
-    
-    if (ticketType === "Standard+2") {
-      overallLimit = 150;
-      overallQuery = { ticketType: "Standard+2" };
-    } else if (ticketType === "Standard+3") {
-      overallLimit = 150;
-      overallQuery = { ticketType: "Standard+3" };
-    } else if (ticketType === "Standard+4" || ticketType === "Standard") {
-      overallLimit = 150;
-      overallQuery = { $or: [ { ticketType: "Standard+4" }, { ticketType: "Standard" } ] };
-    } else if (ticketType && (ticketType.startsWith("Doctor") || ticketType.includes("Doctor"))) {
-      overallLimit = 30;
-      overallQuery = { ticketType: { $regex: /Doctor/i } };
-    } else if (ticketType && ticketType.startsWith("International")) {
-      overallLimit = 50;
-      overallQuery = { ticketType: { $regex: /^International/i } };
-    } else if (ticketType && ticketType.toLowerCase().includes("gala")) {
-      overallLimit = 150;
-      overallQuery = { ticketType: { $regex: /gala/i } };
-    }
-    
-    // Check availability WITH LOCK
-    if (overallLimit !== null) {
-      const currentCount = await UserTicket.countDocuments({
-        ...overallQuery,
-        paymentStatus: { $ne: "rejected" }
-      }, { session });
-      
-      if (currentCount >= overallLimit) {
-        await session.abortTransaction();
-        return { 
-          success: false, 
-          error: "Tickets for this category are sold out." 
-        };
-      }
-    }
-    
-    // Check internal member limits
-    let internalLimit = null;
-    let internalQuery = {};
-    
-    if (subType === "Executive") {
-      internalLimit = 60;
-      internalQuery = { subType: "Executive" };
-    } else if (subType === "TSU") {
-      internalLimit = 50;
-      internalQuery = { subType: "TSU" };
-    } else if (subType === "GEOMEDI") {
-      if (ticketType === "Standard+2") {
-        internalLimit = 30;
-        internalQuery = { subType: "GEOMEDI", ticketType: "Standard+2" };
-      }
-    }
-    
-    if (internalLimit !== null) {
-      const internalCount = await UserTicket.countDocuments({
-        ...internalQuery,
-        paymentStatus: { $ne: "rejected" }
-      }, { session });
-      
-      if (internalCount >= internalLimit) {
-        await session.abortTransaction();
-        return { 
-          success: false, 
-          error: "Internal member tickets are sold out." 
-        };
-      }
-    }
-    
-    // Check email uniqueness
-    const existing = await UserTicket.findOne({ 
-      email: ticketData.email,
-      paymentStatus: { $ne: "rejected" }
-    }, { session });
-    
-    if (existing) {
-      await session.abortTransaction();
-      return { 
-        success: false, 
-        error: "This email has already been used to book a ticket." 
-      };
-    }
-    
-    // Create ticket in transaction
-    const ticket = new UserTicket(ticketData);
-    await ticket.save({ session });
-    
-    // Commit transaction
-    await session.commitTransaction();
-    
-    return { 
-      success: true, 
-      ticket: ticket 
-    };
-    
-  } catch (error) {
-    await session.abortTransaction();
-    throw error;
-  } finally {
-    session.endSession();
-  }
-}
-
 // Test endpoint for connectivity
 router.get("/test", (req, res) => {
   res.json({ message: "Ticket router is working", timestamp: new Date().toISOString() });
@@ -217,7 +102,116 @@ router.post("/submit", upload.any(), async (req, res) => {
     return res.status(400).json({ message: "File too large. Maximum size is 10MB." });
   }
 
-  // Ticket limit and email uniqueness checks are now handled in bookTicketWithTransaction function
+  // --- TICKET LIMIT CHECKS ---
+  try {
+    const ticketType = req.body.ticketType;
+    const subType = req.body.subType;
+    let overallLimit = null;
+    let overallQuery = {};
+    
+    // Overall ticket type limits
+    if (ticketType === "Standard+2") {
+      overallLimit = 150;
+      overallQuery = { ticketType: "Standard+2" };
+    } else if (ticketType === "Standard+3") {
+      overallLimit = 300;
+      overallQuery = { ticketType: "Standard+3" };
+    } else if (ticketType === "Standard+4" || ticketType === "Standard") {
+      // Some forms may use Standard for Std+4
+      overallLimit = 150;
+      overallQuery = { $or: [ { ticketType: "Standard+4" }, { ticketType: "Standard" } ] };
+    } else if (ticketType && ticketType.startsWith("Doctor")) {
+      overallLimit = 30;
+      overallQuery = { ticketType: { $regex: /^Doctor/i } };
+    } else if (ticketType && ticketType.startsWith("International")) {
+      overallLimit = 50;
+      overallQuery = { ticketType: { $regex: /^International/i } };
+    }
+    
+    // Check overall ticket type limit
+    if (overallLimit !== null) {
+      // Count all tickets except rejected ones (pending and completed count towards limit)
+      const overallCount = await UserTicket.countDocuments({
+        ...overallQuery,
+        paymentStatus: { $ne: "rejected" }
+      });
+      if (overallCount >= overallLimit) {
+        return res.status(409).json({ message: "Tickets for this category are sold out." });
+      }
+    }
+    
+    // Internal member type limits
+    let internalLimit = null;
+    let internalQuery = {};
+    
+    if (subType === "Executive") {
+      // GIMSOC Executive & Subcommittee limit across all ticket types
+      internalLimit = 60;
+      internalQuery = { subType: "Executive" };
+    } else if (subType === "TSU") {
+      // TSU limit across all ticket types
+      internalLimit = 50;
+      internalQuery = { subType: "TSU" };
+    } else if (subType === "GEOMEDI") {
+      // GEOMEDI limit only on Standard+2
+      if (ticketType === "Standard+2") {
+        internalLimit = 30;
+        internalQuery = { subType: "GEOMEDI", ticketType: "Standard+2" };
+      }
+    }
+    
+    // Check internal member type limit
+    if (internalLimit !== null) {
+      // Count all tickets except rejected ones (pending and completed count towards limit)
+      const internalCount = await UserTicket.countDocuments({
+        ...internalQuery,
+        paymentStatus: { $ne: "rejected" }
+      });
+      if (internalCount >= internalLimit) {
+        let limitMessage = "";
+        if (subType === "Executive") {
+          limitMessage = "Executive & Subcommittee tickets are sold out.";
+        } else if (subType === "TSU") {
+          limitMessage = "TSU student tickets are sold out.";
+        } else if (subType === "GEOMEDI") {
+          limitMessage = "GEOMEDI student tickets for Standard+2 are sold out.";
+        }
+        return res.status(409).json({ message: limitMessage });
+      }
+    }
+    
+  } catch (err) {
+    console.error("❌ Error checking ticket limits:", err);
+    return res.status(500).json({ message: "Error checking ticket limits." });
+  }
+  
+  // --- EMAIL UNIQUENESS CHECK ---
+  try {
+    const email = req.body.email;
+    if (email) {
+      // Check for existing non-rejected tickets
+      const existing = await UserTicket.findOne({ 
+        email,
+        paymentStatus: { $ne: "rejected" }
+      });
+      if (existing) {
+        return res.status(409).json({ message: "This email has already been used to book a ticket." });
+      }
+      
+      // Additional check for recent submissions (within last 30 seconds) to prevent duplicates
+      const recentSubmission = await UserTicket.findOne({
+        email,
+        paymentStatus: { $ne: "rejected" },
+        createdAt: { $gte: new Date(Date.now() - 30000) } // Last 30 seconds
+      });
+      if (recentSubmission) {
+        return res.status(409).json({ message: "A ticket submission is already in progress. Please wait a moment and try again." });
+      }
+    }
+  } catch (err) {
+    console.error("❌ Error checking email uniqueness:", err);
+    return res.status(500).json({ message: "Error checking email uniqueness." });
+  }
   
   try {
     console.log("🎫 Ticket submission received:", {
@@ -311,7 +305,7 @@ router.post("/submit", upload.any(), async (req, res) => {
       subTypeValue = subType || "Standard"; // Default to Standard if not specified
     }
     // For Doctor tickets, map the ticketType to the correct category
-    else if (ticketType && (ticketType.startsWith("Doctor") || ticketType.includes("Doctor"))) {
+    else if (ticketType === "Doctor") {
       ticketCategoryValue = "Doctor";
       subTypeValue = "Standard"; // Default for Doctor tickets
     }
@@ -406,7 +400,7 @@ router.post("/submit", upload.any(), async (req, res) => {
       }));
     }
 
-    console.log("💾 Saving ticket to database with transaction...");
+    console.log("💾 Saving ticket to database...");
     console.log("📊 Ticket data to save:", {
       ticketType: newTicket.ticketType,
       ticketCategory: newTicket.ticketCategory,
@@ -417,25 +411,25 @@ router.post("/submit", upload.any(), async (req, res) => {
       hasFiles: !!newTicket.headshotUrl || !!newTicket.paymentProofUrl
     });
     
-    // Use transaction-based booking
-    const bookingResult = await bookTicketWithTransaction(newTicket);
+    // Add timeout to prevent hanging
+    const savePromise = newTicket.save();
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Database save timeout')), 10000)
+    );
     
-    if (!bookingResult.success) {
-      return res.status(409).json({ message: bookingResult.error });
-    }
-    
-    console.log("✅ Ticket saved successfully with ID:", bookingResult.ticket._id);
+    await Promise.race([savePromise, timeoutPromise]);
+    console.log("✅ Ticket saved successfully with ID:", newTicket._id);
     
     // Send confirmation email only after successful database save
     console.log("📧 Sending confirmation email...");
     let emailSent = false;
     try {
       const emailResult = await sendTicketConfirmationEmail({
-        fullName: bookingResult.ticket.fullName,
-        email: bookingResult.ticket.email,
-        ticketType: bookingResult.ticket.ticketType,
-        ticketCategory: bookingResult.ticket.ticketCategory,
-        ticketId: bookingResult.ticket._id.toString()
+        fullName: newTicket.fullName,
+        email: newTicket.email,
+        ticketType: newTicket.ticketType,
+        ticketCategory: newTicket.ticketCategory,
+        ticketId: newTicket._id.toString()
       });
       
       if (emailResult.success) {
@@ -451,7 +445,7 @@ router.post("/submit", upload.any(), async (req, res) => {
     console.log("🎉 Sending success response...");
     res.status(201).json({ 
       message: "Ticket submitted successfully", 
-      id: bookingResult.ticket._id,
+      id: newTicket._id,
       emailSent: emailSent 
     });
     console.log("✅ Response sent successfully");

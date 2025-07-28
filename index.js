@@ -97,9 +97,6 @@ app.use("/api/abstract", abstractRouter);
 const submissionRouter = require("./routes/ticketRouter.js");
 app.use("/api/form", submissionRouter);
 
-const ticketLimitsRouter = require("./routes/ticketLimitsRouter.js");
-app.use("/api/ticket-limits", ticketLimitsRouter);
-
 // QR router setup
 const { router: qrRouter, setupWebSocket } = require("./routes/qrRouter.js");
 app.use("/api/qr", qrRouter);
