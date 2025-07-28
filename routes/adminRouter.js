@@ -411,7 +411,9 @@ router.post("/export-to-sheets", async (req, res) => {
     ]);
 
     // Create sheet name with date
-    const sheetName = `Tickets_${date || new Date().toISOString().split('T')[0]}`;
+    // Create valid sheet name (replace hyphens with underscores)
+    const rawDate = date || new Date().toISOString().split('T')[0];
+    const sheetName = `Tickets_${rawDate.replace(/-/g, '_')}`;
     console.log(`📊 Using sheet name: ${sheetName}`);
     
     try {
