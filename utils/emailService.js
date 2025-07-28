@@ -1,7 +1,10 @@
-const { Resend } = require('resend');
+const { TransactionalEmailsApi, SendSmtpEmail } = require('@getbrevo/brevo');
 const QRManager = require('./qrManager');
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Initialize Brevo API
+const apiInstance = new TransactionalEmailsApi();
+apiInstance.setApiKey(0, process.env.BREVO_API_KEY);
+
 const qrManager = new QRManager();
 
 const sendTicketConfirmationEmail = async (userData) => {
@@ -20,6 +23,15 @@ const sendTicketConfirmationEmail = async (userData) => {
       console.error('❌ No email provided to email service');
       return { success: false, error: 'No email provided' };
     }
+    
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      console.error('❌ Invalid email format:', email);
+      return { success: false, error: 'Invalid email format' };
+    }
+    
+    console.log('✅ Email format is valid:', email);
     
     // Generate dynamic QR code with security features
     const { qrCode, qrData } = await qrManager.generateDynamicQR(ticketId);
@@ -269,22 +281,26 @@ Category: ${ticketCategory}
       </html>
     `;
 
-    const { data, error } = await resend.emails.send({
-      from: 'MEDCON 2025 <onboarding@resend.dev>',
-      to: [email],
-      subject: "GIMSOC's MEDCON'25 – Payment Confirmation",
-      html: emailContent,
-    });
+    console.log('📧 Attempting to send email with Brevo...');
+    console.log('📧 From:', 'MEDCON 2025 <noreply@medcongimsoc.com>');
+    console.log('📧 To:', email);
+    console.log('📧 Subject:', "GIMSOC's MEDCON'25 – Payment Confirmation");
 
-    if (error) {
-      console.error('❌ Email sending failed:', error);
-      return { success: false, error };
-    }
+    // Create Brevo email object
+    const sendSmtpEmail = new SendSmtpEmail();
+    sendSmtpEmail.to = [{ email: email, name: fullName }];
+    sendSmtpEmail.subject = "GIMSOC's MEDCON'25 – Payment Confirmation";
+    sendSmtpEmail.htmlContent = emailContent;
+    sendSmtpEmail.sender = { name: "MEDCON 2025", email: "noreply@medcongimsoc.com" };
+
+    const data = await apiInstance.sendTransacEmail(sendSmtpEmail);
 
     console.log('✅ Confirmation email sent successfully to:', email);
+    console.log('✅ Brevo response data:', data);
     return { success: true, data };
   } catch (error) {
     console.error('❌ Error sending confirmation email:', error);
+    console.error('❌ Error stack:', error.stack);
     return { success: false, error };
   }
 };
@@ -458,17 +474,14 @@ const sendTicketApprovalEmail = async (userData) => {
       </html>
     `;
 
-    const { data, error } = await resend.emails.send({
-      from: 'MEDCON 2025 <onboarding@resend.dev>',
-      to: [email],
-      subject: "MEDCON'25 - Your Ticket Has Been Approved! 🎉",
-      html: emailContent,
-    });
+    // Create Brevo email object
+    const sendSmtpEmail = new SendSmtpEmail();
+    sendSmtpEmail.to = [{ email: email, name: fullName }];
+    sendSmtpEmail.subject = "MEDCON'25 - Your Ticket Has Been Approved! 🎉";
+    sendSmtpEmail.htmlContent = emailContent;
+    sendSmtpEmail.sender = { name: "MEDCON 2025", email: "medconconferencegimsoc@gmail.com" };
 
-    if (error) {
-      console.error('❌ Approval email sending failed:', error);
-      return { success: false, error };
-    }
+    const data = await apiInstance.sendTransacEmail(sendSmtpEmail);
 
     console.log('✅ Approval email sent successfully to:', email);
     return { success: true, data };
@@ -647,17 +660,14 @@ const sendTicketRejectionEmail = async (userData) => {
       </html>
     `;
 
-    const { data, error } = await resend.emails.send({
-      from: 'MEDCON 2025 <onboarding@resend.dev>',
-      to: [email],
-      subject: "MEDCON'25 - Ticket Application Status Update",
-      html: emailContent,
-    });
+    // Create Brevo email object
+    const sendSmtpEmail = new SendSmtpEmail();
+    sendSmtpEmail.to = [{ email: email, name: fullName }];
+    sendSmtpEmail.subject = "MEDCON'25 - Ticket Application Status Update";
+    sendSmtpEmail.htmlContent = emailContent;
+    sendSmtpEmail.sender = { name: "MEDCON 2025", email: "noreply@medcongimsoc.com" };
 
-    if (error) {
-      console.error('❌ Rejection email sending failed:', error);
-      return { success: false, error };
-    }
+    const data = await apiInstance.sendTransacEmail(sendSmtpEmail);
 
     console.log('✅ Rejection email sent successfully to:', email);
     return { success: true, data };

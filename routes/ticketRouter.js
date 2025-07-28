@@ -84,7 +84,7 @@ router.post("/test-email", async (req, res) => {
       return res.status(400).json({ error: "Email is required" });
     }
     
-    console.log("🧪 Testing email service with:", email);
+    console.log("🧪 Testing Brevo email service with:", email);
     
     const emailResult = await sendTicketConfirmationEmail({
       fullName: "Test User",
