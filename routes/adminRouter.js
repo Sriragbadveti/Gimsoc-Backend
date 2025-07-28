@@ -282,22 +282,57 @@ router.get("/getallabstracts", async (req, res) => {
 router.post("/export-to-sheets", async (req, res) => {
   try {
     console.log("📊 Starting Google Sheets export...");
+    console.log("🔍 Environment check:");
+    console.log("- GOOGLE_CREDENTIALS_BASE64:", process.env.GOOGLE_CREDENTIALS_BASE64 ? "Set" : "Not set");
+    console.log("- GOOGLE_SHEET_ID:", process.env.GOOGLE_SHEET_ID || "Not set");
     
     const { tickets, date } = req.body;
     
     if (!tickets || !Array.isArray(tickets)) {
+      console.log("❌ Invalid tickets data received");
       return res.status(400).json({ 
         success: false, 
         message: "Invalid tickets data" 
       });
     }
 
+    console.log(`📋 Processing ${tickets.length} tickets...`);
+
+    // Test auth setup
+    console.log("🔐 Testing authentication...");
+    let auth;
+    try {
+      if (process.env.GOOGLE_CREDENTIALS_BASE64) {
+        console.log("🔐 Using base64 credentials...");
+        const credentials = JSON.parse(Buffer.from(process.env.GOOGLE_CREDENTIALS_BASE64, 'base64').toString());
+        auth = new google.auth.GoogleAuth({
+          credentials,
+          scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+        });
+      } else {
+        console.log("🔐 Using key file...");
+        auth = new google.auth.GoogleAuth({
+          keyFile: process.env.GOOGLE_SERVICE_ACCOUNT_KEY_PATH || "./google-credentials.json",
+          scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+        });
+      }
+      console.log("✅ Authentication setup successful");
+    } catch (authError) {
+      console.error("❌ Authentication setup failed:", authError);
+      return res.status(500).json({ 
+        success: false, 
+        message: "Authentication setup failed: " + authError.message 
+      });
+    }
+
     // Get Google Sheets API client
+    console.log("📊 Initializing Google Sheets client...");
     const sheets = google.sheets({ version: "v4", auth });
     
     // Create or get the spreadsheet
     const spreadsheetId = process.env.GOOGLE_SHEET_ID;
     if (!spreadsheetId) {
+      console.log("❌ GOOGLE_SHEET_ID not configured");
       return res.status(500).json({ 
         success: false, 
         message: "Google Sheet ID not configured" 
@@ -377,22 +412,35 @@ router.post("/export-to-sheets", async (req, res) => {
 
     // Create sheet name with date
     const sheetName = `Tickets_${date || new Date().toISOString().split('T')[0]}`;
+    console.log(`📊 Using sheet name: ${sheetName}`);
     
-    // Clear existing data and add headers
-    await sheets.spreadsheets.values.clear({
-      spreadsheetId,
-      range: sheetName,
-    });
+    try {
+      // Clear existing data and add headers
+      console.log("🧹 Clearing existing data...");
+      await sheets.spreadsheets.values.clear({
+        spreadsheetId,
+        range: sheetName,
+      });
+      console.log("✅ Data cleared successfully");
 
-    // Add headers and data
-    await sheets.spreadsheets.values.update({
-      spreadsheetId,
-      range: `${sheetName}!A1`,
-      valueInputOption: "RAW",
-      resource: {
-        values: [headers, ...rows]
-      }
-    });
+      // Add headers and data
+      console.log("📝 Writing data to sheet...");
+      await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `${sheetName}!A1`,
+        valueInputOption: "RAW",
+        resource: {
+          values: [headers, ...rows]
+        }
+      });
+      console.log("✅ Data written successfully");
+    } catch (sheetError) {
+      console.error("❌ Sheet operation failed:", sheetError);
+      return res.status(500).json({ 
+        success: false, 
+        message: "Sheet operation failed: " + sheetError.message 
+      });
+    }
 
     // Format headers (make them bold)
     await sheets.spreadsheets.batchUpdate({
