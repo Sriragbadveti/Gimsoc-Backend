@@ -282,7 +282,9 @@ Category: ${ticketCategory}
     `;
 
     console.log('📧 Attempting to send email with Brevo...');
-    console.log('📧 From:', 'MEDCON 2025 <noreply@medcongimsoc.com>');
+    console.log('📧 API Key exists:', !!process.env.BREVO_API_KEY);
+    console.log('📧 API Key length:', process.env.BREVO_API_KEY ? process.env.BREVO_API_KEY.length : 0);
+    console.log('📧 From:', 'MEDCON 2025 <medconconferencegimsoc@gmail.com>');
     console.log('📧 To:', email);
     console.log('📧 Subject:', "GIMSOC's MEDCON'25 – Payment Confirmation");
 
@@ -291,7 +293,7 @@ Category: ${ticketCategory}
     sendSmtpEmail.to = [{ email: email, name: fullName }];
     sendSmtpEmail.subject = "GIMSOC's MEDCON'25 – Payment Confirmation";
     sendSmtpEmail.htmlContent = emailContent;
-    sendSmtpEmail.sender = { name: "MEDCON 2025", email: "noreply@medcongimsoc.com" };
+    sendSmtpEmail.sender = { name: "MEDCON 2025", email: "medconconferencegimsoc@gmail.com" };
 
     const data = await apiInstance.sendTransacEmail(sendSmtpEmail);
 
@@ -665,7 +667,7 @@ const sendTicketRejectionEmail = async (userData) => {
     sendSmtpEmail.to = [{ email: email, name: fullName }];
     sendSmtpEmail.subject = "MEDCON'25 - Ticket Application Status Update";
     sendSmtpEmail.htmlContent = emailContent;
-    sendSmtpEmail.sender = { name: "MEDCON 2025", email: "noreply@medcongimsoc.com" };
+    sendSmtpEmail.sender = { name: "MEDCON 2025", email: "medconconferencegimsoc@gmail.com" };
 
     const data = await apiInstance.sendTransacEmail(sendSmtpEmail);
 
