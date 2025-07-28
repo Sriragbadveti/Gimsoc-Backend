@@ -8,6 +8,19 @@ const sendTicketConfirmationEmail = async (userData) => {
   try {
     const { fullName, email, ticketType, ticketCategory, ticketId } = userData;
     
+    console.log('📧 Email service called with data:', {
+      fullName,
+      email,
+      ticketType,
+      ticketCategory,
+      ticketId
+    });
+    
+    if (!email) {
+      console.error('❌ No email provided to email service');
+      return { success: false, error: 'No email provided' };
+    }
+    
     // Generate dynamic QR code with security features
     const { qrCode, qrData } = await qrManager.generateDynamicQR(ticketId);
     
@@ -257,11 +270,30 @@ Category: ${ticketCategory}
     `;
 
     const { data, error } = await resend.emails.send({
-      from: 'onboarding@resend.dev',
+      from: 'MEDCON 2025 <medconconferencegimsoc@gmail.com>',
       to: [email],
       subject: "GIMSOC's MEDCON'25 – Payment Confirmation",
       html: emailContent,
     });
+
+    // If the Gmail address fails, try with the default Resend domain
+    if (error && (error.message?.includes('domain') || error.message?.includes('from'))) {
+      console.log('⚠️ Gmail address failed, trying with default Resend domain...');
+      const fallbackResult = await resend.emails.send({
+        from: 'onboarding@resend.dev',
+        to: [email],
+        subject: "GIMSOC's MEDCON'25 – Payment Confirmation",
+        html: emailContent,
+      });
+      
+      if (fallbackResult.error) {
+        console.error('❌ Both Gmail address and fallback domain failed:', fallbackResult.error);
+        return { success: false, error: fallbackResult.error };
+      }
+      
+      console.log('✅ Email sent successfully using fallback domain');
+      return { success: true, data: fallbackResult.data };
+    }
 
     if (error) {
       console.error('❌ Email sending failed:', error);
@@ -446,7 +478,7 @@ const sendTicketApprovalEmail = async (userData) => {
     `;
 
     const { data, error } = await resend.emails.send({
-      from: 'onboarding@resend.dev',
+      from: 'MEDCON 2025 <medconconferencegimsoc@gmail.com>',
       to: [email],
       subject: "MEDCON'25 - Your Ticket Has Been Approved! 🎉",
       html: emailContent,
@@ -635,7 +667,7 @@ const sendTicketRejectionEmail = async (userData) => {
     `;
 
     const { data, error } = await resend.emails.send({
-      from: 'onboarding@resend.dev',
+      from: 'MEDCON 2025 <medconconferencegimsoc@gmail.com>',
       to: [email],
       subject: "MEDCON'25 - Ticket Application Status Update",
       html: emailContent,

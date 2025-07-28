@@ -62,6 +62,48 @@ router.get("/test", (req, res) => {
   res.json({ message: "Ticket router is working", timestamp: new Date().toISOString() });
 });
 
+// Test email endpoint
+router.post("/test-email", async (req, res) => {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      return res.status(400).json({ error: "Email is required" });
+    }
+    
+    console.log("🧪 Testing email service with:", email);
+    
+    const emailResult = await sendTicketConfirmationEmail({
+      fullName: "Test User",
+      email: email,
+      ticketType: "Test Ticket",
+      ticketCategory: "Test Category",
+      ticketId: "test-123"
+    });
+    
+    if (emailResult.success) {
+      res.json({ 
+        message: "Test email sent successfully", 
+        email: email,
+        success: true 
+      });
+    } else {
+      res.status(500).json({ 
+        message: "Test email failed", 
+        error: emailResult.error,
+        success: false 
+      });
+    }
+  } catch (error) {
+    console.error("❌ Test email error:", error);
+    res.status(500).json({ 
+      message: "Test email error", 
+      error: error.message,
+      success: false 
+    });
+  }
+});
+
 // Get gala dinner availability
 router.get("/gala-availability", async (req, res) => {
   try {
@@ -462,6 +504,13 @@ router.post("/submit", upload.any(), async (req, res) => {
     
     // Send confirmation email only after successful database save
     console.log("📧 Sending confirmation email...");
+    console.log("📧 Email data being sent:", {
+      fullName: newTicket.fullName,
+      email: newTicket.email,
+      ticketType: newTicket.ticketType,
+      ticketCategory: newTicket.ticketCategory,
+      ticketId: newTicket._id.toString()
+    });
     let emailSent = false;
     try {
       const emailResult = await sendTicketConfirmationEmail({
