@@ -580,14 +580,21 @@ router.post("/export-to-sheets", async (req, res) => {
     });
 
     const sheetUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit#gid=0`;
+    const specificSheetUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit#gid=0&range=${sheetName}!A1`;
     
     console.log(`✅ Successfully exported ${rows.length} tickets to Google Sheets`);
+    console.log(`📊 Sheet URL: ${sheetUrl}`);
+    console.log(`📊 Sheet name: ${sheetName}`);
+    console.log(`📊 Data range: A1:${String.fromCharCode(65 + headers.length - 1)}${rows.length + 1}`);
     
     res.json({
       success: true,
       exportedCount: rows.length,
       sheetUrl: sheetUrl,
-      message: `Successfully exported ${rows.length} tickets to Google Sheets`
+      specificSheetUrl: specificSheetUrl,
+      sheetName: sheetName,
+      dataRange: `A1:${String.fromCharCode(65 + headers.length - 1)}${rows.length + 1}`,
+      message: `Successfully exported ${rows.length} tickets to Google Sheets in sheet '${sheetName}'`
     });
 
   } catch (error) {
