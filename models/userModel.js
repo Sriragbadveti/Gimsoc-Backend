@@ -10,7 +10,7 @@ const userTicketSchema = new mongoose.Schema({
   },
   subType: {
     type: String,
-    enum: ["GIMSOC", "Non-GIMSOC", "TSU", "3-Day", "7-Day", "Standard", "All-Inclusive", "Group", "Executive"],
+    enum: ["GIMSOC", "Non-GIMSOC", "TSU", "GEOMEDI", "3-Day", "7-Day", "Standard", "All-Inclusive", "Group", "Executive"],
   },
 
   // Common User Info
