@@ -18,10 +18,21 @@ router.options('*', (req, res) => {
 });
 
 // Google Sheets API setup
-const auth = new google.auth.GoogleAuth({
-  keyFile: process.env.GOOGLE_SERVICE_ACCOUNT_KEY_PATH || "./google-credentials.json",
-  scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-});
+let auth;
+if (process.env.GOOGLE_CREDENTIALS_BASE64) {
+  // Use base64 encoded credentials from environment variable
+  const credentials = JSON.parse(Buffer.from(process.env.GOOGLE_CREDENTIALS_BASE64, 'base64').toString());
+  auth = new google.auth.GoogleAuth({
+    credentials,
+    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+  });
+} else {
+  // Use key file (for local development)
+  auth = new google.auth.GoogleAuth({
+    keyFile: process.env.GOOGLE_SERVICE_ACCOUNT_KEY_PATH || "./google-credentials.json",
+    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+  });
+}
 
 // GET ALL TICKETS for ADMIN dashboard
 router.get("/getalltickets", async (req, res) => {
