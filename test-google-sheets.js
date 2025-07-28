@@ -52,7 +52,7 @@ async function testGoogleSheets() {
     
     await sheets.spreadsheets.values.update({
       spreadsheetId: sheetId,
-      range: "TestConnection!A1",
+      range: "Sheet1!A1",
       valueInputOption: "RAW",
       resource: {
         values: testData
