@@ -62,6 +62,19 @@ router.get("/test", (req, res) => {
   res.json({ message: "Ticket router is working", timestamp: new Date().toISOString() });
 });
 
+// Test endpoint for debugging ticket submission
+router.post("/test-submission", (req, res) => {
+  console.log("🧪 Test submission endpoint called");
+  console.log("📋 Request body:", req.body);
+  console.log("📋 Request headers:", req.headers);
+  
+  res.json({ 
+    message: "Test submission received", 
+    body: req.body,
+    timestamp: new Date().toISOString() 
+  });
+});
+
 // Test email endpoint
 router.post("/test-email", async (req, res) => {
   try {
@@ -168,6 +181,13 @@ router.post("/submit", upload.any(), async (req, res) => {
     return res.status(400).json({ message: "File too large. Maximum size is 10MB." });
   }
 
+  // Log the incoming request for debugging
+  console.log("📋 Request body keys:", Object.keys(req.body));
+  console.log("📋 Email from request:", req.body.email);
+  console.log("📋 Full name from request:", req.body.fullName);
+  console.log("📋 Ticket type from request:", req.body.ticketType);
+  console.log("📋 Sub type from request:", req.body.subType);
+
   // --- TICKET LIMIT CHECKS ---
   try {
     const ticketType = req.body.ticketType;
@@ -269,13 +289,17 @@ router.post("/submit", upload.any(), async (req, res) => {
   // --- EMAIL UNIQUENESS CHECK ---
   try {
     const email = req.body.email;
+    console.log("🔍 Checking email uniqueness for:", email);
+    
     if (email) {
       // Check for existing non-rejected tickets
       const existing = await UserTicket.findOne({ 
         email,
         paymentStatus: { $ne: "rejected" }
       });
+      
       if (existing) {
+        console.log("❌ Email already exists:", email);
         return res.status(409).json({ message: "This email has already been used to book a ticket." });
       }
       
@@ -285,9 +309,15 @@ router.post("/submit", upload.any(), async (req, res) => {
         paymentStatus: { $ne: "rejected" },
         createdAt: { $gte: new Date(Date.now() - 30000) } // Last 30 seconds
       });
+      
       if (recentSubmission) {
+        console.log("❌ Recent submission found for email:", email);
         return res.status(409).json({ message: "A ticket submission is already in progress. Please wait a moment and try again." });
       }
+      
+      console.log("✅ Email uniqueness check passed for:", email);
+    } else {
+      console.log("⚠️ No email provided for uniqueness check");
     }
   } catch (err) {
     console.error("❌ Error checking email uniqueness:", err);
