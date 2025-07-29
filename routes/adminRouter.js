@@ -143,6 +143,7 @@ router.get("/getalltickets", adminAuthMiddleware, async (req, res) => {
       foodPreference: ticket.foodPreference,
       dietaryRestrictions: ticket.dietaryRestrictions,
       accessibilityNeeds: ticket.accessibilityNeeds,
+      galaDinner: ticket.galaDinner,
       isTsuStudent: ticket.isTsuStudent,
       tsuEmail: ticket.tsuEmail,
       isGimsocMember: ticket.isGimsocMember,
