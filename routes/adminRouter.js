@@ -189,7 +189,7 @@ router.get("/ticket-summary", adminAuthMiddleware, async (req, res) => {
       }),
       standardPlus3: await UserTicket.countDocuments({ 
         ticketType: "Standard+3", 
-        paymentStatus: { $ne: "rejected" } a
+        paymentStatus: { $ne: "rejected" }
       }),
       standardPlus4: await UserTicket.countDocuments({ 
         $or: [{ ticketType: "Standard+4" }, { ticketType: "Standard" }],
