@@ -66,8 +66,8 @@ router.post("/login", async (req, res) => {
     // Set JWT token as HTTP-only cookie
     res.cookie("adminToken", token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      secure: false, // Set to false for now to fix the issue
+      sameSite: "none", // Allow cross-origin requests
       path: "/",
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
     });
@@ -155,8 +155,8 @@ router.post("/logout", async (req, res) => {
     // Clear the admin token cookie
     res.clearCookie("adminToken", {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      secure: false, // Set to false for now to fix the issue
+      sameSite: "none", // Allow cross-origin requests
       path: "/",
     });
 

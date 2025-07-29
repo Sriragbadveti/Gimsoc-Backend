@@ -50,6 +50,15 @@ app.options('/api/dashboard/*', (req, res) => {
   res.status(200).end();
 });
 
+// Specific OPTIONS handler for admin-auth routes
+app.options('/api/admin-auth/*', (req, res) => {
+  res.header('Access-Control-Allow-Origin', req.headers.origin);
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.status(200).end();
+});
+
 // Debug middleware for CORS issues
 app.use((req, res, next) => {
   console.log(`🌐 ${req.method} ${req.path} - Origin: ${req.headers.origin}`);
