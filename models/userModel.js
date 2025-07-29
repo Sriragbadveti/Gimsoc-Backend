@@ -64,6 +64,7 @@ const userTicketSchema = new mongoose.Schema({
   paymentMethod: String,
   discountConfirmation: Boolean,
   workshopPackage: String,
+  paypalOrderId: String, // Store PayPal order ID for international tickets
   paymentStatus: {
     type: String,
     enum: ["pending", "completed", "rejected"],

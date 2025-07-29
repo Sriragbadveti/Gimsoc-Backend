@@ -214,6 +214,7 @@ router.get("/ticket/:ticketId", async (req, res) => {
       email: ticket.email,
       ticketType: ticket.ticketType,
       ticketCategory: ticket.ticketCategory,
+      paypalOrderId: ticket.paypalOrderId, // Add PayPal order ID to response
       createdAt: ticket.createdAt
     });
   } catch (error) {
@@ -591,6 +592,10 @@ router.post("/submit", ticketSubmissionRateLimit, upload.any(), async (req, res)
       headshotUrl,
       paymentProofUrl,
       studentIdProofUrl,
+      // Store PayPal order ID for international tickets only
+      ...(ticketType && ticketType.startsWith("International") && req.body.paypalOrderId && {
+        paypalOrderId: req.body.paypalOrderId
+      })
     });
 
     // 🧠 Handle group ticket attendees

@@ -155,6 +155,7 @@ router.get("/getalltickets", adminAuthMiddleware, async (req, res) => {
       whatsappConsent: ticket.whatsappConsent,
       paymentMethod: ticket.paymentMethod,
       discountConfirmation: ticket.discountConfirmation,
+      paypalOrderId: ticket.paypalOrderId, // Add PayPal order ID for international tickets
       attendees: ticket.attendees?.map(att => ({
         name: att.name,
         email: att.email,
