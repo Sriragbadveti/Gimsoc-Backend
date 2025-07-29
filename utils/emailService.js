@@ -1,9 +1,8 @@
 require('dotenv').config();
 const { Resend } = require('resend');
-const QRManager = require('./qrManager');
+const qrManager = require('./qrManager');
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-const qrManager = new QRManager();
 
 const sendTicketConfirmationEmail = async (userData) => {
   try {
