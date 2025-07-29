@@ -268,7 +268,21 @@ router.post("/submit", upload.any(), async (req, res) => {
     
     // --- GALA DINNER LIMIT CHECK ---
     const galaDinner = req.body.galaDinner;
-    if (galaDinner && galaDinner.includes("Yes")) {
+    const workshopPackage = req.body.workshopPackage;
+    
+    // Check if this is an all-inclusive doctor ticket (which automatically includes gala)
+    const isAllInclusiveDoctor = ticketType && ticketType.includes("Doctor") && 
+                                (workshopPackage === "All-Inclusive" || 
+                                 (galaDinner && galaDinner.includes("Yes")));
+    
+    // For all-inclusive doctor tickets, automatically set gala dinner to "Yes"
+    let finalGalaDinner = galaDinner;
+    if (isAllInclusiveDoctor && (!galaDinner || !galaDinner.includes("Yes"))) {
+      finalGalaDinner = "Yes, I would like to attend the Gala Dinner (+40 GEL)";
+      console.log("🎭 Auto-including gala dinner for all-inclusive doctor ticket");
+    }
+    
+    if (finalGalaDinner && finalGalaDinner.includes("Yes")) {
       // Count all tickets with gala dinner selected (excluding rejected ones)
       const galaCount = await UserTicket.countDocuments({
         galaDinner: { $regex: /Yes/i },
@@ -465,7 +479,7 @@ router.post("/submit", upload.any(), async (req, res) => {
       foodPreference,
       dietaryRestrictions,
       accessibilityNeeds,
-      galaDinner: req.body.galaDinner || null, // Add gala dinner field
+      galaDinner: finalGalaDinner || null, // Use final gala dinner value (auto-included for all-inclusive doctor tickets)
       paymentMethod,
       discountConfirmation: toBool(discountConfirmation),
       infoAccurate: toBool(infoAccurate),

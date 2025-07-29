@@ -214,7 +214,14 @@ router.get("/ticket-summary", async (req, res) => {
         subType: "GEOMEDI", 
         ticketType: "Standard+2",
         paymentStatus: { $ne: "rejected" } 
-      })
+      }),
+      
+      // Gala dinner counts (including automatic inclusions for all-inclusive doctor tickets)
+      galaTickets: await UserTicket.countDocuments({ 
+        galaDinner: { $regex: /Yes/i },
+        paymentStatus: { $ne: "rejected" } 
+      }),
+      galaLimit: 150
     };
     
     console.log("📊 Ticket summary:", summary);
