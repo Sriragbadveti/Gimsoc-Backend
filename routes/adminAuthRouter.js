@@ -82,6 +82,7 @@ router.post("/login", async (req, res) => {
         email: admin.email,
         role: admin.role,
       },
+      token: token, // Send token in response for localStorage
     });
 
   } catch (error) {
@@ -97,10 +98,21 @@ router.get("/check-auth", async (req, res) => {
   try {
     console.log("🔍 Admin auth check request received");
     console.log("🔍 Request cookies:", req.cookies);
+    console.log("🔍 Authorization header:", req.headers.authorization);
 
-    const token = req.cookies.adminToken;
+    // Check for token in cookies first, then in Authorization header
+    let token = req.cookies.adminToken;
+    
+    if (!token && req.headers.authorization) {
+      // Extract token from Authorization header (Bearer token)
+      const authHeader = req.headers.authorization;
+      if (authHeader.startsWith('Bearer ')) {
+        token = authHeader.substring(7); // Remove 'Bearer ' prefix
+      }
+    }
+    
     if (!token) {
-      console.log("❌ No admin token found in cookies");
+      console.log("❌ No admin token found in cookies or Authorization header");
       return res.status(401).json({ authenticated: false, message: "No admin token found" });
     }
 

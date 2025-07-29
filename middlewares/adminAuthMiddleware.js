@@ -5,12 +5,23 @@ const secret = process.env.JWT_SECRET || "your-secret-key";
 // Admin authentication middleware
 const adminAuthMiddleware = async (req, res, next) => {
   try {
-    const token = req.cookies.adminToken;
-    console.log("🔍 Admin auth middleware - Token:", token ? "Present" : "Missing");
+    // Check for token in cookies first, then in Authorization header
+    let token = req.cookies.adminToken;
+    console.log("🔍 Admin auth middleware - Token from cookies:", token ? "Present" : "Missing");
     console.log("🔍 All cookies:", req.cookies);
+    console.log("🔍 Authorization header:", req.headers.authorization);
+
+    if (!token && req.headers.authorization) {
+      // Extract token from Authorization header (Bearer token)
+      const authHeader = req.headers.authorization;
+      if (authHeader.startsWith('Bearer ')) {
+        token = authHeader.substring(7); // Remove 'Bearer ' prefix
+        console.log("🔍 Admin auth middleware - Token from Authorization header: Present");
+      }
+    }
 
     if (!token) {
-      console.log("❌ No admin token found in cookies");
+      console.log("❌ No admin token found in cookies or Authorization header");
       return res.status(401).json({ message: "Admin access token not found" });
     }
 
