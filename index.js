@@ -124,7 +124,7 @@ const submissionRouter = require("./routes/ticketRouter.js");
 app.use("/api/form", submissionRouter);
 
 // QR router setup
-const { router: qrRouter, setupWebSocket } = require("./routes/qrRouter.js");
+const qrRouter = require("./routes/qrRouter.js");
 app.use("/api/qr", qrRouter);
 
 // MONGODB CONNECTION WITH CONNECTION POOLING
@@ -151,6 +151,5 @@ const server = app.listen(PORT, () => {
   console.log(`🚀 App is successfully running on port ${PORT}`);
 });
 
-// Setup WebSocket server
-const wss = setupWebSocket(server);
-console.log('🔌 WebSocket server initialized');
+// WebSocket setup removed - using simple QR system
+console.log('🔌 QR system initialized without WebSocket');
