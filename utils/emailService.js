@@ -53,7 +53,7 @@ Category: ${ticketCategory}
       <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>MEDCON 2025 - Ticket Confirmation</title>
+        <title>MEDCON 2025 - Registration Confirmation</title>
         <style>
           body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -176,7 +176,7 @@ Category: ${ticketCategory}
         <div class="container">
           <div class="header">
             <div class="success-icon">🎉</div>
-            <h1>MEDCON'25 - Payment Confirmation</h1>
+            <h1>MEDCON'25 - Registration Confirmation</h1>
             <p>Your payment has been successfully received</p>
           </div>
           
@@ -191,7 +191,7 @@ Category: ${ticketCategory}
             <p style="margin: 0; color: #856404; font-size: 14px;">
               <strong>Date:</strong> 24 & 25 October 2025, from 9:00 AM to 6:00 PM<br>
               <strong>Gala Night:</strong> 26 October from 6:00 PM to 12:00 AM<br>
-              <strong>Venue:</strong> To Be Announced
+              <strong>Venue: </strong> Ivane Javakhishvili Tbilisi State University
             </p>
           </div>
             
