@@ -15,8 +15,8 @@ const router = express.Router();
 // Rate limiter for ticket submissions
 const ticketSubmissionLimiter = new RateLimiterMemory({
   keyGenerator: (req) => req.ip,
-  points: 5, // 5 submissions per IP
-  duration: 300, // Per 5 minutes
+  points: 15, // 10 submissions per IP (increased from 5)
+  duration: 600, // Per 10 minutes (increased from 5 minutes)
 });
 
 // Rate limiting middleware for ticket submissions
@@ -27,7 +27,7 @@ const ticketSubmissionRateLimit = async (req, res, next) => {
   } catch (rejRes) {
     console.log(`🚫 Rate limit exceeded for IP: ${req.ip}`);
     res.status(429).json({
-      error: 'Too many ticket submissions. Please wait 5 minutes before trying again.',
+      error: 'Too many ticket submissions. Please wait 10 minutes before trying again.',
       retryAfter: Math.round(rejRes.msBeforeNext / 1000)
     });
   }
