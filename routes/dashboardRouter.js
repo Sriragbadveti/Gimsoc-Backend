@@ -32,8 +32,10 @@ router.post("/login", async (req, res) => {
       });
     }
 
-    // Find user by email
-    const user = await UserTicket.findOne({ email });
+    // Find user by email (case-insensitive)
+    const user = await UserTicket.findOne({ 
+      email: { $regex: new RegExp(`^${email}$`, 'i') }
+    });
 
     if (!user) {
       console.log("❌ User not found:", email);
@@ -173,8 +175,10 @@ router.get("/profile", async (req, res) => {
 
     console.log("🔍 Profile request received for email:", email);
 
-    // Find the user by email
-    const user = await UserTicket.findOne({ email }).lean();
+    // Find the user by email (case-insensitive)
+    const user = await UserTicket.findOne({ 
+      email: { $regex: new RegExp(`^${email}$`, 'i') }
+    }).lean();
     
     if (!user) {
       console.log("❌ User not found in database with email:", email);
@@ -214,8 +218,10 @@ router.get("/check-dashboard-access", async (req, res) => {
       return res.json({ access: false });
     }
 
-    // Check if user has a ticket
-    const user = await UserTicket.findOne({ email: loginUser.email });
+    // Check if user has a ticket (case-insensitive)
+    const user = await UserTicket.findOne({ 
+      email: { $regex: new RegExp(`^${loginUser.email}$`, 'i') }
+    });
     
     if (!user) {
       return res.json({ access: false });

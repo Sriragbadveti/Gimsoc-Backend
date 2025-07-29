@@ -65,8 +65,10 @@ async function setupAdmins() {
     console.log("🔧 Setting up admin users...");
 
     for (const adminData of adminUsers) {
-      // Check if admin already exists
-      const existingAdmin = await Admin.findOne({ email: adminData.email });
+      // Check if admin already exists (case-insensitive)
+      const existingAdmin = await Admin.findOne({ 
+        email: { $regex: new RegExp(`^${adminData.email}$`, 'i') }
+      });
       
       if (existingAdmin) {
         console.log(`⚠️  Admin already exists: ${adminData.email}`);
@@ -78,7 +80,7 @@ async function setupAdmins() {
 
       // Create admin user
       const admin = new Admin({
-        email: adminData.email,
+        email: adminData.email.toLowerCase().trim(),
         password: hashedPassword,
         role: adminData.role,
         isActive: true

@@ -304,33 +304,34 @@ router.post("/submit", upload.any(), async (req, res) => {
   // --- EMAIL UNIQUENESS CHECK ---
   try {
     const email = req.body.email;
-    console.log("🔍 Checking email uniqueness for:", email);
+    const emailLower = email ? email.toLowerCase().trim() : null;
+    console.log("🔍 Checking email uniqueness for:", emailLower);
     
-    if (email) {
-      // Check for existing non-rejected tickets
+    if (emailLower) {
+      // Check for existing non-rejected tickets (case-insensitive)
       const existing = await UserTicket.findOne({ 
-        email,
+        email: { $regex: new RegExp(`^${emailLower}$`, 'i') },
         paymentStatus: { $ne: "rejected" }
       });
       
       if (existing) {
-        console.log("❌ Email already exists:", email);
+        console.log("❌ Email already exists:", emailLower);
         return res.status(409).json({ message: "This email has already been used to book a ticket." });
       }
       
       // Additional check for recent submissions (within last 30 seconds) to prevent duplicates
       const recentSubmission = await UserTicket.findOne({
-        email,
+        email: { $regex: new RegExp(`^${emailLower}$`, 'i') },
         paymentStatus: { $ne: "rejected" },
         createdAt: { $gte: new Date(Date.now() - 30000) } // Last 30 seconds
       });
       
       if (recentSubmission) {
-        console.log("❌ Recent submission found for email:", email);
+        console.log("❌ Recent submission found for email:", emailLower);
         return res.status(409).json({ message: "A ticket submission is already in progress. Please wait a moment and try again." });
       }
       
-      console.log("✅ Email uniqueness check passed for:", email);
+      console.log("✅ Email uniqueness check passed for:", emailLower);
     } else {
       console.log("⚠️ No email provided for uniqueness check");
     }
@@ -345,7 +346,7 @@ router.post("/submit", upload.any(), async (req, res) => {
       ticketCategory: req.body.ticketCategory,
       subType: req.body.subType,
       fullName: req.body.fullName,
-      email: req.body.email,
+      email: req.body.email ? req.body.email.toLowerCase().trim() : null,
       dashboardPassword: req.body.dashboardPassword ? "***PROVIDED***" : "NOT PROVIDED",
       workshopPackage: req.body.workshopPackage,
       isGimsocMember: req.body.isGimsocMember,
@@ -468,11 +469,16 @@ router.post("/submit", upload.any(), async (req, res) => {
       ? req.body.studentIdProofUrl
       : filesMap.studentIdProof || null;
 
+    // Convert all email fields to lowercase for consistency
+    const emailLower = email ? email.toLowerCase().trim() : null;
+    const tsuEmailLower = tsuEmail ? tsuEmail.toLowerCase().trim() : null;
+    const geomediEmailLower = req.body.geomediEmail ? req.body.geomediEmail.toLowerCase().trim() : null;
+
     const newTicket = new UserTicket({
       ticketType,
       ticketCategory: ticketCategoryValue,
       subType: subTypeValue,
-      email,
+      email: emailLower,
       whatsapp,
       password: password, // Keep original password
       dashboardPassword: dashboardPassword, // Save dashboard password separately
@@ -496,7 +502,7 @@ router.post("/submit", upload.any(), async (req, res) => {
       isTsuStudent: toBool(isTsuStudent),
       isGimsocMember: toBool(isGimsocMember),
       membershipCode: membershipCode || null,
-      tsuEmail,
+      tsuEmail: tsuEmailLower,
       semester,
       nationality,
       countryOfResidence,
@@ -532,7 +538,7 @@ router.post("/submit", upload.any(), async (req, res) => {
       ticketType: newTicket.ticketType,
       ticketCategory: newTicket.ticketCategory,
       subType: newTicket.subType,
-      email: newTicket.email,
+      email: newTicket.email, // This will now be lowercase
       fullName: newTicket.fullName,
       hasPassword: !!newTicket.password,
       hasFiles: !!newTicket.headshotUrl || !!newTicket.paymentProofUrl

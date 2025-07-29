@@ -15,7 +15,9 @@ router.post("/signup", async (req, res) => {
       return res.status(400).send({ message: "Missing details in the signup form" });
     }
 
-    const existingUser = await LoginActivity.findOne({ email });
+    const existingUser = await LoginActivity.findOne({ 
+      email: { $regex: new RegExp(`^${email}$`, 'i') }
+    });
     if (existingUser) {
       return res.status(400).send({ message: "User already exists" });
     }
@@ -29,7 +31,7 @@ router.post("/signup", async (req, res) => {
     const savedUser = await LoginActivity.create({
       firstname,
       lastname,
-      email,
+      email: email.toLowerCase().trim(),
       password: hashedPassword,
       type: "signup",
     });
@@ -58,7 +60,9 @@ router.post("/login", async (req, res) => {
       return res.status(400).send({ message: "Missing credentials" });
     }
 
-    const user = await LoginActivity.findOne({ email });
+    const user = await LoginActivity.findOne({ 
+      email: { $regex: new RegExp(`^${email}$`, 'i') }
+    });
     if (!user) {
       return res.status(400).send({ message: "Email does not exist" });
     }
@@ -71,7 +75,7 @@ router.post("/login", async (req, res) => {
     await LoginActivity.create({
       firstname: user.firstname,
       lastname: user.lastname,
-      email: user.email,
+      email: user.email.toLowerCase().trim(),
       password: user.password,
       type: "login",
     });

@@ -30,8 +30,10 @@ module.exports.authMiddleware = async (req, res, next) => {
 
     console.log("🔍 LoginActivity user email:", loginUser.email);
 
-    // Then, find the corresponding user in UserTicket model by email
-    const user = await User.findOne({ email: loginUser.email });
+    // Then, find the corresponding user in UserTicket model by email (case-insensitive)
+    const user = await User.findOne({ 
+      email: { $regex: new RegExp(`^${loginUser.email}$`, 'i') }
+    });
     console.log("🔍 UserTicket user found:", user ? "Yes" : "No");
 
     if (!user) {
