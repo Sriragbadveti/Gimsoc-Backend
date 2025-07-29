@@ -244,6 +244,7 @@ router.post("/submit", ticketSubmissionRateLimit, upload.any(), async (req, res)
   console.log("📋 Full name from request:", req.body.fullName);
   console.log("📋 Ticket type from request:", req.body.ticketType);
   console.log("📋 Sub type from request:", req.body.subType);
+  console.log("📋 Gala dinner from request:", req.body.galaDinner, "Type:", typeof req.body.galaDinner);
 
   // --- TICKET LIMIT CHECKS ---
   let finalGalaDinner = req.body.galaDinner; // Declare outside try-catch for use later
