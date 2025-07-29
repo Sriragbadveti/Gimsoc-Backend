@@ -17,6 +17,25 @@ router.get('/test', (req, res) => {
   });
 });
 
+// Test QR generation endpoint
+router.get('/test/generate/:ticketId', async (req, res) => {
+  try {
+    const { ticketId } = req.params;
+    const { qrCode, qrData } = await qrManager.generateDynamicQR(ticketId);
+    
+    res.json({
+      ticketId,
+      qrCode,
+      qrData,
+      qrDataString: JSON.stringify(qrData),
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('❌ Error generating test QR:', error);
+    res.status(500).json({ error: 'Failed to generate test QR' });
+  }
+});
+
 // Rate limiter for QR validation
 const rateLimiter = new RateLimiterMemory({
   keyGenerator: (req) => req.ip,
@@ -72,6 +91,53 @@ router.post('/validate', rateLimitMiddleware, async (req, res) => {
     res.json(result);
   } catch (error) {
     console.error('❌ Error in QR validation:', error);
+    res.status(500).json({
+      valid: false,
+      reason: 'server_error',
+      message: 'Server error during validation'
+    });
+  }
+});
+
+// Test QR validation endpoint (without rate limiting)
+router.post('/test/validate', async (req, res) => {
+  try {
+    const { qrData } = req.body;
+    const ipAddress = req.ip;
+    const userAgent = req.get('User-Agent');
+
+    console.log('🧪 Test QR validation request:', { qrData, ipAddress, userAgent });
+
+    if (!qrData) {
+      return res.status(400).json({
+        valid: false,
+        reason: 'missing_data',
+        message: 'QR data is required'
+      });
+    }
+
+    // Parse QR data
+    let scannedData;
+    try {
+      scannedData = JSON.parse(qrData);
+    } catch (error) {
+      return res.status(400).json({
+        valid: false,
+        reason: 'invalid_format',
+        message: 'Invalid QR code format'
+      });
+    }
+
+    console.log('🧪 Parsed QR data:', scannedData);
+
+    // Validate QR code
+    const result = await qrManager.validateQRCode(scannedData, ipAddress, userAgent);
+    
+    console.log(`🧪 Test QR validation result for ticket ${scannedData.ticketId}:`, result);
+    
+    res.json(result);
+  } catch (error) {
+    console.error('❌ Error in test QR validation:', error);
     res.status(500).json({
       valid: false,
       reason: 'server_error',

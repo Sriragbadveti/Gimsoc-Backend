@@ -1,6 +1,5 @@
 const QRCode = require('qrcode');
-const crypto = require('crypto');
-const { QRCode: QRCodeModel, UsedQR } = require('../models/qrCodeModel');
+const { QRCode: QRCodeModel } = require('../models/qrCodeModel');
 
 class QRManager {
   constructor() {
@@ -9,38 +8,33 @@ class QRManager {
     this.startQRUpdates();
   }
 
-  // Generate unique nonce for QR codes
-  generateNonce() {
-    return crypto.randomBytes(16).toString('hex');
-  }
 
-  // Generate cryptographic signature
-  generateSignature(ticketId, timestamp) {
-    const data = `${ticketId}-${timestamp}-${process.env.QR_SECRET}`;
-    return crypto.createHash('sha256').update(data).digest('hex');
-  }
 
-  // Generate dynamic QR code with security features
+  // Generate dynamic QR code with user details
   async generateDynamicQR(ticketId) {
     try {
-      const timestamp = Date.now();
-      const expiry = timestamp + (5 * 60 * 1000); // 5 minutes
-      const nonce = this.generateNonce();
-      const signature = this.generateSignature(ticketId, timestamp);
+      // Fetch user details from database
+      const { UserTicket } = require('../models/userModel');
+      const userTicket = await UserTicket.findById(ticketId);
+      
+      if (!userTicket) {
+        throw new Error(`Ticket not found: ${ticketId}`);
+      }
 
       const qrData = {
         ticketId: ticketId,
-        timestamp: timestamp,
-        expiry: expiry,
-        signature: signature,
-        nonce: nonce
+        fullName: userTicket.fullName,
+        ticketType: userTicket.ticketType,
+        ticketCategory: userTicket.ticketCategory,
+        email: userTicket.email,
+        timestamp: Date.now()
       };
 
       // Generate QR code using hosted service for email compatibility
       const qrDataString = JSON.stringify(qrData);
       const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(qrDataString)}&format=png&margin=1&ecc=H`;
 
-      console.log(`🔍 Generated dynamic QR for ticket ${ticketId}`);
+      console.log(`🔍 Generated QR for ticket ${ticketId} - Name: ${userTicket.fullName}, Type: ${userTicket.ticketType}`);
       return { qrCode: qrCodeUrl, qrData };
     } catch (error) {
       console.error('❌ Error generating dynamic QR:', error);
@@ -51,36 +45,22 @@ class QRManager {
   // Validate QR code on scan
   async validateQRCode(scannedData, ipAddress, userAgent) {
     try {
-      const { ticketId, timestamp, signature, nonce, expiry } = scannedData;
+      const { ticketId, fullName, ticketType, email } = scannedData;
 
-      // Check if QR code is expired
-      if (Date.now() > expiry) {
-        await this.recordScan(ticketId, ipAddress, userAgent, false, 'expired');
-        return { valid: false, reason: 'expired', message: 'QR code has expired' };
+      // Basic validation - check if required fields exist
+      if (!ticketId || !fullName || !ticketType) {
+        await this.recordScan(ticketId, ipAddress, userAgent, false, 'missing_fields');
+        return { valid: false, reason: 'missing_fields', message: 'QR code missing required information' };
       }
 
-      // Verify signature
-      const expectedSignature = this.generateSignature(ticketId, timestamp);
-      if (signature !== expectedSignature) {
-        await this.recordScan(ticketId, ipAddress, userAgent, false, 'invalid_signature');
-        return { valid: false, reason: 'invalid_signature', message: 'Invalid QR code signature' };
+      // Verify ticket exists in database
+      const { UserTicket } = require('../models/userModel');
+      const userTicket = await UserTicket.findById(ticketId);
+      
+      if (!userTicket) {
+        await this.recordScan(ticketId, ipAddress, userAgent, false, 'ticket_not_found');
+        return { valid: false, reason: 'ticket_not_found', message: 'Ticket not found in database' };
       }
-
-      // Check if already used (prevent replay attacks)
-      const usedQR = await UsedQR.findOne({ nonce });
-      if (usedQR) {
-        await this.recordScan(ticketId, ipAddress, userAgent, false, 'already_used');
-        return { valid: false, reason: 'already_used', message: 'QR code already scanned' };
-      }
-
-      // Mark as used
-      await UsedQR.create({ 
-        nonce, 
-        ticketId, 
-        scannedAt: Date.now(),
-        ipAddress,
-        userAgent
-      });
 
       // Record successful scan
       await this.recordScan(ticketId, ipAddress, userAgent, true, 'valid');
@@ -88,6 +68,10 @@ class QRManager {
       return { 
         valid: true, 
         ticketId,
+        fullName: userTicket.fullName,
+        ticketType: userTicket.ticketType,
+        ticketCategory: userTicket.ticketCategory,
+        email: userTicket.email,
         message: 'QR code validated successfully',
         scannedAt: Date.now()
       };
