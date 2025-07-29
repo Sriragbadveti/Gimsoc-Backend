@@ -191,7 +191,7 @@ Category: ${ticketCategory}
             <p style="margin: 0; color: #856404; font-size: 14px;">
               <strong>Date:</strong> 24 & 25 October 2025, from 9:00 AM to 6:00 PM<br>
               <strong>Gala Night:</strong> 26 October from 6:00 PM to 12:00 AM<br>
-              <strong>Venue: </strong> Ivane Javakhishvili Tbilisi State University
+              <strong>Venue:</strong> Ivane Javakhishvili Tbilisi State University
             </p>
           </div>
             
@@ -289,7 +289,7 @@ Category: ${ticketCategory}
     const { data, error } = await resend.emails.send({
       from: 'noreply@medcongimsoc.com',
       to: [email],
-      subject: "GIMSOC's MEDCON'25 – Payment Confirmation",
+      subject: "GIMSOC's MEDCON'25 – Registration Confirmation",
       html: emailContent
     });
 

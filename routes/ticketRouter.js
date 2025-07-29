@@ -4,6 +4,7 @@ const fs = require("fs");
 const path = require("path");
 const { v2: cloudinary } = require("cloudinary");
 const streamifier = require("streamifier");
+const mongoose = require("mongoose");
 const UserTicket = require("../models/userModel");
 const { sendTicketConfirmationEmail } = require("../utils/emailService");
 
@@ -144,13 +145,35 @@ router.get("/gala-availability", async (req, res) => {
 // Get ticket data by ID
 router.get("/ticket/:ticketId", async (req, res) => {
   try {
+    console.log("🔍 Ticket endpoint called");
     const { ticketId } = req.params;
+    console.log("🔍 Fetching ticket with ID:", ticketId);
+    console.log("🔍 Request params:", req.params);
     
-    const ticket = await UserTicket.findById(ticketId);
+    // Convert string ticketId to ObjectId if it's a valid ObjectId string
+    let objectId;
+    
+    try {
+      objectId = new mongoose.Types.ObjectId(ticketId);
+      console.log("✅ Converted to ObjectId:", objectId);
+    } catch (error) {
+      console.log("❌ Invalid ObjectId format:", ticketId, error.message);
+      return res.status(400).json({ error: "Invalid ticket ID format" });
+    }
+    
+    console.log("🔍 Searching for ticket with ObjectId:", objectId);
+    const ticket = await UserTicket.findById(objectId);
     
     if (!ticket) {
+      console.log("❌ Ticket not found in database");
       return res.status(404).json({ error: "Ticket not found" });
     }
+    
+    console.log("✅ Ticket found:", {
+      id: ticket._id,
+      fullName: ticket.fullName,
+      email: ticket.email
+    });
     
     res.json({
       ticketId: ticket._id,
@@ -161,7 +184,8 @@ router.get("/ticket/:ticketId", async (req, res) => {
       createdAt: ticket.createdAt
     });
   } catch (error) {
-    console.error("❌ Error fetching ticket:", error);
+    console.error("❌ Error fetching ticket:", error.message);
+    console.error("❌ Error stack:", error.stack);
     res.status(500).json({ error: "Server error" });
   }
 });
