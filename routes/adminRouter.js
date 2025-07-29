@@ -3,6 +3,7 @@ const { google } = require("googleapis");
 const Abstract  = require("../models/abstractModel.js");
 const UserTicket = require("../models/userModel.js"); 
 const { sendTicketApprovalEmail, sendTicketRejectionEmail } = require("../utils/emailService.js");
+const { adminAuthMiddleware } = require("../middlewares/adminAuthMiddleware.js");
 const path = require("path");
 const fs = require("fs");
 
@@ -94,7 +95,7 @@ router.get("/test-sheets", async (req, res) => {
 });
 
 // GET ALL TICKETS for ADMIN dashboard
-router.get("/getalltickets", async (req, res) => {
+router.get("/getalltickets", adminAuthMiddleware, async (req, res) => {
   try {
     console.log("🔍 Fetching all tickets...");
     // Assuming your model is named UserTicket
@@ -168,7 +169,7 @@ router.get("/getalltickets", async (req, res) => {
 });
 
 // GET TICKET SUMMARY STATISTICS (excluding rejected tickets)
-router.get("/ticket-summary", async (req, res) => {
+router.get("/ticket-summary", adminAuthMiddleware, async (req, res) => {
   try {
     console.log("📊 Fetching ticket summary statistics...");
     
@@ -235,7 +236,7 @@ router.get("/ticket-summary", async (req, res) => {
 // Note: Files are now stored in Cloudinary, not local storage
 
 // Test endpoint to check file URLs in database
-router.get("/file-urls", async (req, res) => {
+router.get("/file-urls", adminAuthMiddleware, async (req, res) => {
   try {
     const tickets = await UserTicket.find({}, { headshotUrl: 1, paymentProofUrl: 1, fullName: 1 }).limit(5);
     const abstracts = await Abstract.find({}, { abstractFileURL: 1, title: 1 }).limit(5);
@@ -257,7 +258,7 @@ router.get("/file-urls", async (req, res) => {
   }
 });
 
-router.patch("/approveticket/:ticketId", async (req, res) => {
+router.patch("/approveticket/:ticketId", adminAuthMiddleware, async (req, res) => {
   const { ticketId } = req.params;
   const { paymentStatus } = req.body;
 
@@ -314,7 +315,7 @@ router.patch("/approveticket/:ticketId", async (req, res) => {
 });
 
 // ✅ NEW: GET ALL ABSTRACT SUBMISSIONS
-router.get("/getallabstracts", async (req, res) => {
+router.get("/getallabstracts", adminAuthMiddleware, async (req, res) => {
   try {
     const abstracts = await Abstract.find().sort({ createdAt: -1 }).lean();
 
@@ -345,7 +346,7 @@ router.get("/getallabstracts", async (req, res) => {
 });
 
 // Export tickets to Google Sheets
-router.post("/export-to-sheets", async (req, res) => {
+router.post("/export-to-sheets", adminAuthMiddleware, async (req, res) => {
   try {
     console.log("📊 Starting Google Sheets export...");
     console.log("🔍 Environment check:");
