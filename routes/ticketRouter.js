@@ -189,6 +189,8 @@ router.post("/submit", upload.any(), async (req, res) => {
   console.log("📋 Sub type from request:", req.body.subType);
 
   // --- TICKET LIMIT CHECKS ---
+  let finalGalaDinner = req.body.galaDinner; // Declare outside try-catch for use later
+  
   try {
     const ticketType = req.body.ticketType;
     const subType = req.body.subType;
@@ -276,7 +278,6 @@ router.post("/submit", upload.any(), async (req, res) => {
                                  (galaDinner && galaDinner.includes("Yes")));
     
     // For all-inclusive doctor tickets, automatically set gala dinner to "Yes"
-    let finalGalaDinner = galaDinner;
     if (isAllInclusiveDoctor && (!galaDinner || !galaDinner.includes("Yes"))) {
       finalGalaDinner = "Yes, I would like to attend the Gala Dinner (+40 GEL)";
       console.log("🎭 Auto-including gala dinner for all-inclusive doctor ticket");
