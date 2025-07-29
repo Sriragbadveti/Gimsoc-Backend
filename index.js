@@ -136,8 +136,6 @@ mongoose
     minPoolSize: 10, // Minimum connections to maintain
     serverSelectionTimeoutMS: 5000, // Timeout for server selection
     socketTimeoutMS: 45000, // Socket timeout
-    bufferMaxEntries: 0, // Disable mongoose buffering
-    bufferCommands: false, // Disable mongoose buffering
   })
   .then(() => {
     console.log("✅ MongoDB connected with optimized connection pool");
