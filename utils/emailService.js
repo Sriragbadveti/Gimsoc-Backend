@@ -32,7 +32,7 @@ const sendTicketConfirmationEmail = async (userData) => {
     console.log('✅ Email format is valid:', email);
     
     // Generate dynamic QR code with security features
-    const { qrCode, qrData } = await qrManager.generateDynamicQR(ticketId);
+    const { qrCode, qrData } = await qrManager.generateDynamicQR(ticketId, userData);
     
     console.log('🔍 Dynamic QR Code generated for ticket:', ticketId);
     console.log('📋 QR Data:', qrData);

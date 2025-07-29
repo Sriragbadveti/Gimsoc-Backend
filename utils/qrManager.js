@@ -23,7 +23,7 @@ class QRManager {
   }
 
   // Generate dynamic QR code with security features
-  async generateDynamicQR(ticketId) {
+  async generateDynamicQR(ticketId, userData = null) {
     try {
       const timestamp = Date.now();
       const expiry = timestamp + (5 * 60 * 1000); // 5 minutes
@@ -37,6 +37,14 @@ class QRManager {
         signature: signature,
         nonce: nonce
       };
+
+      // Add user information if provided
+      if (userData) {
+        qrData.fullName = userData.fullName;
+        qrData.email = userData.email;
+        qrData.ticketType = userData.ticketType;
+        qrData.ticketCategory = userData.ticketCategory;
+      }
 
       // Generate QR code using hosted service for email compatibility
       const qrDataString = JSON.stringify(qrData);
