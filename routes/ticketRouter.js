@@ -226,6 +226,10 @@ router.get("/ticket/:ticketId", async (req, res) => {
 // Route to handle ticket submissions
 router.post("/submit", ticketSubmissionRateLimit, upload.any(), async (req, res) => {
   console.log("🚀 Ticket submission started at:", new Date().toISOString());
+  console.log("📋 Request IP:", req.ip);
+  console.log("📋 Request headers:", req.headers);
+  console.log("📋 Request body keys:", Object.keys(req.body));
+  console.log("📋 Files received:", req.files ? req.files.length : 0);
   
   // Handle multer errors
   if (req.fileValidationError) {
@@ -509,11 +513,24 @@ router.post("/submit", ticketSubmissionRateLimit, upload.any(), async (req, res)
       ticketCategoryValue = "Standard";
       subTypeValue = subType; // Use the subType as provided
     }
+    // For International tickets, map the ticketType to the correct category
+    else if (ticketType && ticketType.startsWith("International")) {
+      ticketCategoryValue = "International";
+      subTypeValue = "Standard"; // Default for International tickets
+    }
     
     console.log("🔧 Processing ticket:", {
       originalTicketType: ticketType,
       mappedTicketCategory: ticketCategoryValue,
       mappedSubType: subTypeValue
+    });
+    
+    console.log("📊 Ticket data received:", {
+      ticketType: req.body.ticketType,
+      ticketCategory: req.body.ticketCategory,
+      email: req.body.email,
+      fullName: req.body.fullName,
+      paymentMethod: req.body.paymentMethod
     });
     
     // Accept direct Cloudinary URLs from frontend if present
