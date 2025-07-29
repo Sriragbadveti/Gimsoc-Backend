@@ -1,12 +1,11 @@
-const QRCode = require('qrcode');
 const mongoose = require('mongoose');
-const { QRCode: QRCodeModel, UsedQR } = require('../models/qrCodeModel');
+const QRCodeModel = require('../models/qrCodeModel');
 
 class QRManager {
   constructor() {
-    this.activeConnections = new Map(); // ticketId -> WebSocket connections
+    this.connections = new Set();
     this.updateInterval = null;
-    this.startQRUpdates();
+    this.isUpdating = false;
   }
 
   generateNonce() {
@@ -17,15 +16,15 @@ class QRManager {
     return `sig_${ticketId}_${timestamp}`;
   }
 
-  // Generate dynamic QR code with user data included
-  async generateDynamicQR(ticketId, userData = null) {
+  // Generate dynamic QR code
+  async generateDynamicQR(ticketId) {
     try {
       const timestamp = Date.now();
       const expiry = timestamp + (5 * 60 * 1000); // 5 minutes
       const nonce = this.generateNonce();
       const signature = this.generateSignature(ticketId, timestamp);
 
-      // Create QR data with user information
+      // Create QR data
       const qrData = {
         ticketId: ticketId,
         timestamp: timestamp,
@@ -34,256 +33,122 @@ class QRManager {
         nonce: nonce
       };
 
-      // Add user information if provided
-      if (userData) {
-        qrData.fullName = userData.fullName;
-        qrData.email = userData.email;
-        qrData.ticketType = userData.ticketType;
-        qrData.ticketCategory = userData.ticketCategory;
-      }
-
-      // Generate QR code locally using qrcode library
+      // Generate QR code using hosted service
       const qrDataString = JSON.stringify(qrData);
-      const qrCodeDataUrl = await QRCode.toDataURL(qrDataString, {
-        errorCorrectionLevel: 'H',
-        type: 'image/png',
-        quality: 0.92,
-        margin: 1,
-        color: {
-          dark: '#000000',
-          light: '#FFFFFF'
-        }
-      });
+      const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrDataString)}`;
 
       console.log(`🔍 Generated dynamic QR for ticket ${ticketId}`);
-      console.log(`📋 QR Data includes user info:`, userData ? 'Yes' : 'No');
-      return { qrCode: qrCodeDataUrl, qrData };
+      return { qrCode: qrCodeUrl, qrData };
     } catch (error) {
       console.error('❌ Error generating dynamic QR:', error);
       throw error;
     }
   }
 
-  // Validate QR code on scan
-  async validateQRCode(scannedData, ipAddress, userAgent) {
-    try {
-      const { ticketId, timestamp, signature, nonce, expiry } = scannedData;
-
-      // Check if QR code is expired
-      if (Date.now() > expiry) {
-        await this.recordScan(ticketId, ipAddress, userAgent, false, 'expired');
-        return { valid: false, reason: 'expired', message: 'QR code has expired' };
-      }
-
-      // Verify signature
-      const expectedSignature = this.generateSignature(ticketId, timestamp);
-      if (signature !== expectedSignature) {
-        await this.recordScan(ticketId, ipAddress, userAgent, false, 'invalid_signature');
-        return { valid: false, reason: 'invalid_signature', message: 'Invalid QR code signature' };
-      }
-
-      // Check if already used (prevent replay attacks)
-      const usedQR = await UsedQR.findOne({ nonce });
-      if (usedQR) {
-        await this.recordScan(ticketId, ipAddress, userAgent, false, 'already_used');
-        return { valid: false, reason: 'already_used', message: 'QR code already scanned' };
-      }
-
-      // Mark as used
-      await UsedQR.create({ 
-        nonce, 
-        ticketId, 
-        scannedAt: Date.now(),
-        ipAddress,
-        userAgent
-      });
-
-      // Record successful scan
-      await this.recordScan(ticketId, ipAddress, userAgent, true, 'valid');
-
-      return { 
-        valid: true, 
-        ticketId,
-        message: 'QR code validated successfully',
-        scannedAt: Date.now()
-      };
-    } catch (error) {
-      console.error('❌ Error validating QR code:', error);
-      return { valid: false, reason: 'validation_error', message: 'Error validating QR code' };
-    }
-  }
-
-  // Record scan attempt
-  async recordScan(ticketId, ipAddress, userAgent, isValid, reason) {
-    try {
-      await QRCodeModel.findOneAndUpdate(
-        { ticketId },
-        {
-          $push: {
-            scanHistory: {
-              scannedAt: Date.now(),
-              ipAddress,
-              userAgent,
-              isValid,
-              reason
-            }
-          }
-        },
-        { upsert: true }
-      );
-    } catch (error) {
-      console.error('❌ Error recording scan:', error);
-    }
-  }
-
-  // Update all QR codes (for dynamic updates)
   async updateAllQRCodes() {
+    if (this.isUpdating) {
+      console.log('⚠️ QR update already in progress, skipping...');
+      return;
+    }
+
+    this.isUpdating = true;
     try {
       console.log('🔄 Updating all QR codes...');
       
-      // Get all tickets from database
+      // Fetch all completed tickets
       const UserTicket = require('../models/userModel');
-      const tickets = await UserTicket.find({ paymentStatus: 'completed' });
-      
+      const tickets = await UserTicket.find({ paymentStatus: "completed" });
+      console.log(`📊 Found ${tickets.length} completed tickets to update`);
+
       for (const ticket of tickets) {
         try {
-          const userData = {
-            fullName: ticket.fullName,
-            email: ticket.email,
-            ticketType: ticket.ticketType,
-            ticketCategory: ticket.ticketCategory
-          };
-          
-          const { qrCode, qrData } = await this.generateDynamicQR(ticket._id.toString(), userData);
-          
-          // Store updated QR code
+          // Generate new QR code
+          const { qrCode, qrData } = await this.generateDynamicQR(ticket._id.toString());
+
+          // Update or create QR code record
           await QRCodeModel.findOneAndUpdate(
             { ticketId: ticket._id.toString() },
-            { 
-              qrCode,
-              qrData,
-              lastUpdated: Date.now()
+            {
+              ticketId: ticket._id.toString(),
+              qrCode: qrCode,
+              qrData: qrData,
+              lastUpdated: new Date()
             },
-            { upsert: true }
+            { upsert: true, new: true }
           );
-          
-          // Broadcast to connected clients
-          this.broadcastQRUpdate(ticket._id.toString(), qrCode, qrData);
-          
+
+          console.log(`✅ Updated QR for ticket ${ticket._id}`);
         } catch (error) {
           console.error(`❌ Error updating QR for ticket ${ticket._id}:`, error);
         }
       }
-      
-      console.log(`✅ Updated ${tickets.length} QR codes`);
+
+      // Broadcast updates to connected clients
+      this.broadcastQRUpdate();
+      console.log('✅ All QR codes updated successfully');
     } catch (error) {
       console.error('❌ Error updating QR codes:', error);
+    } finally {
+      this.isUpdating = false;
     }
   }
 
-  // Start QR updates
-  startQRUpdates() {
-    console.log('🔄 Starting QR code updates...');
-    this.updateInterval = setInterval(() => {
-      this.updateAllQRCodes();
-    }, 5 * 60 * 1000); // Update every 5 minutes
-  }
-
-  // Stop QR updates
-  stopQRUpdates() {
-    if (this.updateInterval) {
-      clearInterval(this.updateInterval);
-      this.updateInterval = null;
-      console.log('⏹️ Stopped QR code updates');
-    }
-  }
-
-  // Add WebSocket connection
-  addConnection(ticketId, ws) {
-    if (!this.activeConnections.has(ticketId)) {
-      this.activeConnections.set(ticketId, new Set());
-    }
-    this.activeConnections.get(ticketId).add(ws);
-    console.log(`🔗 Added WebSocket connection for ticket ${ticketId}`);
-  }
-
-  // Remove WebSocket connection
-  removeConnection(ticketId, ws) {
-    const connections = this.activeConnections.get(ticketId);
-    if (connections) {
-      connections.delete(ws);
-      if (connections.size === 0) {
-        this.activeConnections.delete(ticketId);
-      }
-      console.log(`🔌 Removed WebSocket connection for ticket ${ticketId}`);
-    }
-  }
-
-  // Broadcast QR update to connected clients
-  broadcastQRUpdate(ticketId, qrCode, qrData) {
-    const connections = this.activeConnections.get(ticketId);
-    if (connections) {
-      connections.forEach(ws => {
-        try {
-          ws.send(JSON.stringify({
-            type: 'qr_update',
-            ticketId,
-            qrCode,
-            qrData
-          }));
-        } catch (error) {
-          console.error('❌ Error broadcasting QR update:', error);
-          this.removeConnection(ticketId, ws);
-        }
-      });
-    }
-  }
-
-  // Get QR code for a specific ticket
   async getQRCode(ticketId) {
     try {
-      // First try to get from cache
-      let qrCodeDoc = await QRCodeModel.findOne({ ticketId });
+      // First try to get from QRCode collection
+      let qrRecord = await QRCodeModel.findOne({ ticketId: ticketId });
       
-      if (!qrCodeDoc) {
-        // Generate new QR code
-        const UserTicket = require('../models/userModel');
-        const ticket = await UserTicket.findById(ticketId);
+      if (!qrRecord) {
+        // If not found, generate new QR code
+        const { qrCode, qrData } = await this.generateDynamicQR(ticketId);
         
-        if (!ticket) {
-          throw new Error('Ticket not found');
-        }
-        
-        const userData = {
-          fullName: ticket.fullName,
-          email: ticket.email,
-          ticketType: ticket.ticketType,
-          ticketCategory: ticket.ticketCategory
-        };
-        
-        const { qrCode, qrData } = await this.generateDynamicQR(ticketId, userData);
-        
-        // Store in cache
-        qrCodeDoc = await QRCodeModel.create({
-          ticketId,
-          qrCode,
-          qrData,
-          lastUpdated: Date.now()
+        // Save to QRCode collection
+        qrRecord = await QRCodeModel.create({
+          ticketId: ticketId,
+          qrCode: qrCode,
+          qrData: qrData,
+          lastUpdated: new Date()
         });
       }
       
-      return qrCodeDoc;
+      return qrRecord;
     } catch (error) {
       console.error('❌ Error getting QR code:', error);
       throw error;
     }
   }
 
-  // Get scan history for a ticket
+  stopQRUpdates() {
+    if (this.updateInterval) {
+      clearInterval(this.updateInterval);
+      this.updateInterval = null;
+      console.log('⏹️ QR updates stopped');
+    }
+  }
+
+  addConnection(connection) {
+    this.connections.add(connection);
+    console.log(`🔗 Client connected. Total connections: ${this.connections.size}`);
+  }
+
+  removeConnection(connection) {
+    this.connections.delete(connection);
+    console.log(`🔌 Client disconnected. Total connections: ${this.connections.size}`);
+  }
+
+  broadcastQRUpdate() {
+    const message = JSON.stringify({ type: 'qr_update', timestamp: Date.now() });
+    this.connections.forEach(connection => {
+      if (connection.readyState === 1) { // WebSocket.OPEN
+        connection.send(message);
+      }
+    });
+  }
+
   async getScanHistory(ticketId) {
     try {
-      const qrCodeDoc = await QRCodeModel.findOne({ ticketId });
-      return qrCodeDoc ? qrCodeDoc.scanHistory : [];
+      const qrRecord = await QRCodeModel.findOne({ ticketId: ticketId });
+      return qrRecord ? qrRecord.scanHistory || [] : [];
     } catch (error) {
       console.error('❌ Error getting scan history:', error);
       return [];
@@ -291,4 +156,4 @@ class QRManager {
   }
 }
 
-module.exports = QRManager; 
+module.exports = new QRManager(); 
