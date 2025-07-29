@@ -280,13 +280,13 @@ Category: ${ticketCategory}
 
     console.log('📧 Attempting to send email with Resend...');
     console.log('📧 API Key exists:', !!process.env.RESEND_API_KEY);
-    console.log('📧 From:', 'MEDCON 2025 <noreply@medcongimsoc.com>');
+    console.log('📧 From:', 'MEDCON 2025 <onboarding@resend.dev>');
     console.log('📧 To:', email);
     console.log('📧 Subject:', "GIMSOC's MEDCON'25 – Payment Confirmation");
 
-    // Resend API call - send directly to the user using custom domain email
+    // Resend API call - send directly to the user using onboarding address
     const { data, error } = await resend.emails.send({
-      from: 'noreply@medcongimsoc.com',
+      from: 'onboarding@resend.dev',
       to: [email],
       subject: "GIMSOC's MEDCON'25 – Payment Confirmation",
       html: emailContent
@@ -476,9 +476,9 @@ const sendTicketApprovalEmail = async (userData) => {
       </html>
     `;
 
-    // Resend API call - send directly to the user using custom domain email
+    // Resend API call - send directly to the user using onboarding address
     const { data, error } = await resend.emails.send({
-      from: 'noreply@medcongimsoc.com',
+      from: 'onboarding@resend.dev',
       to: [email],
       subject: "MEDCON'25 - Your Ticket Has Been Approved! 🎉",
       html: emailContent
@@ -666,9 +666,9 @@ const sendTicketRejectionEmail = async (userData) => {
       </html>
     `;
 
-    // Resend API call - send directly to the user using custom domain email
+    // Resend API call - send directly to the user using onboarding address
     const { data, error } = await resend.emails.send({
-      from: 'noreply@medcongimsoc.com',
+      from: 'onboarding@resend.dev',
       to: [email],
       subject: "MEDCON'25 - Ticket Application Status Update",
       html: emailContent
