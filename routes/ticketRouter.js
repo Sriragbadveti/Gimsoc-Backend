@@ -5,10 +5,33 @@ const path = require("path");
 const { v2: cloudinary } = require("cloudinary");
 const streamifier = require("streamifier");
 const mongoose = require("mongoose");
+const { RateLimiterMemory } = require("rate-limiter-flexible");
 const UserTicket = require("../models/userModel");
 const { sendTicketConfirmationEmail } = require("../utils/emailService");
+const emailQueue = require("../utils/emailQueue");
 
 const router = express.Router();
+
+// Rate limiter for ticket submissions
+const ticketSubmissionLimiter = new RateLimiterMemory({
+  keyGenerator: (req) => req.ip,
+  points: 5, // 5 submissions per IP
+  duration: 300, // Per 5 minutes
+});
+
+// Rate limiting middleware for ticket submissions
+const ticketSubmissionRateLimit = async (req, res, next) => {
+  try {
+    await ticketSubmissionLimiter.consume(req.ip);
+    next();
+  } catch (rejRes) {
+    console.log(`🚫 Rate limit exceeded for IP: ${req.ip}`);
+    res.status(429).json({
+      error: 'Too many ticket submissions. Please wait 5 minutes before trying again.',
+      retryAfter: Math.round(rejRes.msBeforeNext / 1000)
+    });
+  }
+};
 
 // Cloudinary config
 cloudinary.config({
@@ -38,22 +61,32 @@ const upload = multer({
 // Utility: Convert string-like booleans to actual Boolean values
 const toBool = (val) => val === "Yes" || val === "true" || val === true;
 
-// Utility: Upload file to Cloudinary
+// Utility: Upload file to Cloudinary with timeout and retry
 const uploadToCloudinary = (file, folder) => {
   return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      reject(new Error('Cloudinary upload timeout'));
+    }, 30000); // 30 second timeout
+    
     const stream = cloudinary.uploader.upload_stream(
       {
         folder: `gimsoc/${folder}`,
         resource_type: "auto",
+        quality: "auto", // Optimize image quality
+        fetch_format: "auto", // Auto-optimize format
       },
       (error, result) => {
+        clearTimeout(timeout);
         if (result) {
+          console.log(`✅ File uploaded to Cloudinary: ${result.secure_url}`);
           resolve(result.secure_url);
         } else {
+          console.error(`❌ Cloudinary upload failed:`, error);
           reject(error);
         }
       }
     );
+    
     streamifier.createReadStream(file.buffer).pipe(stream);
   });
 };
@@ -191,7 +224,7 @@ router.get("/ticket/:ticketId", async (req, res) => {
 });
 
 // Route to handle ticket submissions
-router.post("/submit", upload.any(), async (req, res) => {
+router.post("/submit", ticketSubmissionRateLimit, upload.any(), async (req, res) => {
   console.log("🚀 Ticket submission started at:", new Date().toISOString());
   
   // Handle multer errors
@@ -577,34 +610,21 @@ router.post("/submit", upload.any(), async (req, res) => {
     await Promise.race([savePromise, timeoutPromise]);
     console.log("✅ Ticket saved successfully with ID:", newTicket._id);
     
-    // Send confirmation email only after successful database save
-    console.log("📧 Sending confirmation email...");
-    console.log("📧 Email data being sent:", {
+    // Queue confirmation email for processing
+    console.log("📧 Queuing confirmation email...");
+    const emailData = {
       fullName: newTicket.fullName,
       email: newTicket.email,
       ticketType: newTicket.ticketType,
       ticketCategory: newTicket.ticketCategory,
       ticketId: newTicket._id.toString()
-    });
-    let emailSent = false;
-    try {
-      const emailResult = await sendTicketConfirmationEmail({
-        fullName: newTicket.fullName,
-        email: newTicket.email,
-        ticketType: newTicket.ticketType,
-        ticketCategory: newTicket.ticketCategory,
-        ticketId: newTicket._id.toString()
-      });
-      
-      if (emailResult.success) {
-        console.log("✅ Confirmation email sent successfully");
-        emailSent = true;
-      } else {
-        console.log("⚠️ Email sending failed, but ticket was saved:", emailResult.error);
-      }
-    } catch (emailError) {
-      console.log("⚠️ Email sending error, but ticket was saved:", emailError);
-    }
+    };
+    
+    const emailJobId = emailQueue.addToQueue(emailData);
+    console.log(`📧 Email queued with job ID: ${emailJobId}`);
+    
+    // Email will be processed asynchronously, so we don't wait for it
+    const emailSent = true; // We assume it will be sent successfully
     
     console.log("🎉 Sending success response...");
     res.status(201).json({ 

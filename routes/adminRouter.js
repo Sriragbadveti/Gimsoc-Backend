@@ -6,6 +6,7 @@ const { sendTicketApprovalEmail, sendTicketRejectionEmail } = require("../utils/
 const { adminAuthMiddleware } = require("../middlewares/adminAuthMiddleware.js");
 const path = require("path");
 const fs = require("fs");
+const mongoose = require("mongoose"); // Added for system status
 
 const router = express.Router();
 
@@ -618,6 +619,70 @@ router.post("/export-to-sheets", adminAuthMiddleware, async (req, res) => {
       success: false,
       message: error.message || "Failed to export to Google Sheets"
     });
+  }
+});
+
+// System status endpoint
+router.get("/system-status", adminAuthMiddleware, async (req, res) => {
+  try {
+    const emailQueue = require("../utils/emailQueue");
+    
+    // Get database connection status
+    const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
+    
+    // Get email queue status
+    const emailQueueStatus = emailQueue.getStatus();
+    
+    // Get memory usage
+    const memUsage = process.memoryUsage();
+    
+    // Get uptime
+    const uptime = process.uptime();
+    
+    res.json({
+      timestamp: new Date().toISOString(),
+      system: {
+        uptime: Math.floor(uptime),
+        memory: {
+          rss: Math.round(memUsage.rss / 1024 / 1024) + ' MB',
+          heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024) + ' MB',
+          heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024) + ' MB'
+        }
+      },
+      database: {
+        status: dbStatus,
+        connectionPool: {
+          maxPoolSize: 50,
+          minPoolSize: 10
+        }
+      },
+      emailQueue: emailQueueStatus,
+      performance: {
+        nodeVersion: process.version,
+        platform: process.platform,
+        arch: process.arch
+      }
+    });
+  } catch (error) {
+    console.error("❌ Error getting system status:", error);
+    res.status(500).json({ error: "Failed to get system status" });
+  }
+});
+
+// Clear email queue endpoint
+router.post("/clear-email-queue", adminAuthMiddleware, async (req, res) => {
+  try {
+    const emailQueue = require("../utils/emailQueue");
+    const clearedCount = emailQueue.clearQueue();
+    
+    res.json({
+      message: "Email queue cleared successfully",
+      clearedCount: clearedCount,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error("❌ Error clearing email queue:", error);
+    res.status(500).json({ error: "Failed to clear email queue" });
   }
 });
 

@@ -59,15 +59,29 @@ app.options('/api/admin-auth/*', (req, res) => {
   res.status(200).end();
 });
 
-// Debug middleware for CORS issues
+// Performance monitoring middleware
 app.use((req, res, next) => {
-  console.log(`🌐 ${req.method} ${req.path} - Origin: ${req.headers.origin}`);
+  const start = Date.now();
+  const requestId = Date.now() + Math.random().toString(36).substr(2, 9);
+  
+  console.log(`🌐 [${requestId}] ${req.method} ${req.path} - Origin: ${req.headers.origin} - Started`);
   
   // Additional CORS headers for problematic requests
   res.header('Access-Control-Allow-Origin', req.headers.origin);
   res.header('Access-Control-Allow-Credentials', 'true');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  
+  // Log response time
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    console.log(`✅ [${requestId}] ${req.method} ${req.path} - ${res.statusCode} - ${duration}ms`);
+    
+    // Log slow requests
+    if (duration > 5000) {
+      console.warn(`⚠️ [${requestId}] Slow request: ${req.method} ${req.path} took ${duration}ms`);
+    }
+  });
   
   next();
 });
@@ -113,14 +127,21 @@ app.use("/api/form", submissionRouter);
 const { router: qrRouter, setupWebSocket } = require("./routes/qrRouter.js");
 app.use("/api/qr", qrRouter);
 
-// MONGODB CONNECTION
+// MONGODB CONNECTION WITH CONNECTION POOLING
 mongoose
   .connect(process.env.MONGO_DB || "mongodb://localhost:27017/gimsoc", {
     useNewUrlParser: true,
     useUnifiedTopology: true,
+    maxPoolSize: 50, // Increased connection pool for high concurrency
+    minPoolSize: 10, // Minimum connections to maintain
+    serverSelectionTimeoutMS: 5000, // Timeout for server selection
+    socketTimeoutMS: 45000, // Socket timeout
+    bufferMaxEntries: 0, // Disable mongoose buffering
+    bufferCommands: false, // Disable mongoose buffering
   })
   .then(() => {
-    console.log("✅ MongoDB connected");
+    console.log("✅ MongoDB connected with optimized connection pool");
+    console.log(`📊 Connection pool: min=${10}, max=${50}`);
   })
   .catch((err) => {
     console.log("❌ MongoDB connection error:", err);
