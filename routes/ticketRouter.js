@@ -61,28 +61,59 @@ const upload = multer({
 // Utility: Convert string-like booleans to actual Boolean values
 const toBool = (val) => val === "Yes" || val === "true" || val === true;
 
-// Utility: Upload file to Cloudinary with timeout and retry
+// Utility: Upload file to Cloudinary with quality limits and timeout
 const uploadToCloudinary = (file, folder) => {
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
       reject(new Error('Cloudinary upload timeout'));
     }, 30000); // 30 second timeout
     
+    // Determine file type and set appropriate quality settings
+    const isImage = file.mimetype.startsWith('image/');
+    const isVideo = file.mimetype.startsWith('video/');
+    
+    const uploadOptions = {
+      folder: `gimsoc/${folder}`,
+      resource_type: "auto",
+      quality: "auto:low", // Force low quality for faster uploads
+      fetch_format: "auto",
+      transformation: []
+    };
+    
+    // Add specific transformations for images
+    if (isImage) {
+      uploadOptions.transformation.push({
+        quality: "auto:low",
+        fetch_format: "auto",
+        width: 1200, // Limit max width
+        height: 1200, // Limit max height
+        crop: "limit" // Maintain aspect ratio
+      });
+    }
+    
+    // Add specific transformations for videos
+    if (isVideo) {
+      uploadOptions.transformation.push({
+        quality: "auto:low",
+        fetch_format: "auto",
+        width: 1280, // Limit max width
+        height: 720, // Limit max height
+        crop: "limit"
+      });
+    }
+    
+    console.log(`📁 Uploading ${file.originalname} (${file.mimetype}) with quality settings:`, uploadOptions);
+    
     const stream = cloudinary.uploader.upload_stream(
-      {
-        folder: `gimsoc/${folder}`,
-        resource_type: "auto",
-        quality: "auto", // Optimize image quality
-        fetch_format: "auto", // Auto-optimize format
-      },
+      uploadOptions,
       (error, result) => {
         clearTimeout(timeout);
         if (result) {
-          console.log(`✅ File uploaded to Cloudinary: ${result.secure_url}`);
+          console.log(`✅ File uploaded to Cloudinary: ${result.secure_url} (Size: ${result.bytes} bytes)`);
           resolve(result.secure_url);
         } else {
-          console.error(`❌ Cloudinary upload failed:`, error);
-          reject(error);
+          console.error(`❌ Cloudinary upload failed for ${file.originalname}:`, error);
+          reject(new Error(`Failed to upload ${file.originalname}: ${error?.message || 'Unknown error'}`));
         }
       }
     );
@@ -431,6 +462,33 @@ router.post("/submit", ticketSubmissionRateLimit, upload.any(), async (req, res)
           size: file.size
         });
         
+        // Validate file size (max 5MB)
+        const maxSize = 5 * 1024 * 1024; // 5MB
+        if (file.size > maxSize) {
+          console.error(`❌ File ${file.originalname} is too large: ${file.size} bytes`);
+          return res.status(400).json({ 
+            message: "Validation error", 
+            errors: [`File ${file.originalname} is too large. Maximum size is 5MB.`],
+            details: [{ field: "files", message: `File ${file.originalname} is too large`, value: file.size }]
+          });
+        }
+        
+        // Validate file type
+        const allowedTypes = [
+          'image/jpeg', 'image/jpg', 'image/png', 'image/webp',
+          'application/pdf', 'application/msword', 
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        ];
+        
+        if (!allowedTypes.includes(file.mimetype)) {
+          console.error(`❌ File ${file.originalname} has invalid type: ${file.mimetype}`);
+          return res.status(400).json({ 
+            message: "Validation error", 
+            errors: [`File ${file.originalname} has invalid type. Allowed types: JPEG, PNG, WebP, PDF, DOC, DOCX`],
+            details: [{ field: "files", message: `Invalid file type: ${file.mimetype}`, value: file.mimetype }]
+          });
+        }
+        
         try {
           const cloudinaryUrl = await uploadToCloudinary(file, "tickets");
           filesMap[file.fieldname] = cloudinaryUrl;
@@ -443,6 +501,27 @@ router.post("/submit", ticketSubmissionRateLimit, upload.any(), async (req, res)
     }
     
     console.log("📁 Files uploaded:", filesMap);
+
+    // Validate that all required files were uploaded successfully
+    const requiredFiles = ['headshot', 'paymentProof'];
+    const missingFiles = [];
+    
+    for (const requiredFile of requiredFiles) {
+      if (!filesMap[requiredFile] && !req.body[`${requiredFile}Url`]) {
+        missingFiles.push(requiredFile);
+      }
+    }
+    
+    if (missingFiles.length > 0) {
+      console.error("❌ Missing required files:", missingFiles);
+      return res.status(400).json({ 
+        message: "Validation error", 
+        errors: [`Missing required files: ${missingFiles.join(', ')}`],
+        details: [{ field: "files", message: `Missing required files: ${missingFiles.join(', ')}`, value: missingFiles }]
+      });
+    }
+    
+    console.log("✅ All required files uploaded successfully");
 
     const {
       ticketType,
