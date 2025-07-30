@@ -688,6 +688,89 @@ router.post("/clear-email-queue", adminAuthMiddleware, async (req, res) => {
   }
 });
 
+// Get failed emails endpoint
+router.get("/failed-emails", adminAuthMiddleware, async (req, res) => {
+  try {
+    const emailQueue = require("../utils/emailQueue");
+    const failedEmails = emailQueue.getFailedEmails();
+    
+    res.json({
+      failedEmails: failedEmails,
+      count: failedEmails.length,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error("❌ Error getting failed emails:", error);
+    res.status(500).json({ error: "Failed to get failed emails" });
+  }
+});
+
+// Retry failed emails endpoint
+router.post("/retry-failed-emails", adminAuthMiddleware, async (req, res) => {
+  try {
+    const emailQueue = require("../utils/emailQueue");
+    const retriedCount = emailQueue.retryFailedEmails();
+    
+    res.json({
+      message: "Failed emails added back to queue",
+      retriedCount: retriedCount,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error("❌ Error retrying failed emails:", error);
+    res.status(500).json({ error: "Failed to retry failed emails" });
+  }
+});
+
+// Clear failed emails endpoint
+router.post("/clear-failed-emails", adminAuthMiddleware, async (req, res) => {
+  try {
+    const emailQueue = require("../utils/emailQueue");
+    const clearedCount = emailQueue.clearFailedEmails();
+    
+    res.json({
+      message: "Failed emails list cleared successfully",
+      clearedCount: clearedCount,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error("❌ Error clearing failed emails:", error);
+    res.status(500).json({ error: "Failed to clear failed emails" });
+  }
+});
+
+// Test email endpoint for debugging
+router.post("/test-email", adminAuthMiddleware, async (req, res) => {
+  try {
+    const { email, fullName } = req.body;
+    
+    if (!email || !fullName) {
+      return res.status(400).json({ error: "Email and fullName are required" });
+    }
+
+    const emailQueue = require("../utils/emailQueue");
+    const testEmailData = {
+      fullName: fullName,
+      email: email,
+      ticketType: "Test Email",
+      ticketCategory: "Admin Test",
+      ticketId: "TEST_" + Date.now()
+    };
+
+    const jobId = emailQueue.addToQueue(testEmailData);
+    
+    res.json({
+      message: "Test email queued successfully",
+      jobId: jobId,
+      emailData: testEmailData,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error("❌ Error sending test email:", error);
+    res.status(500).json({ error: "Failed to send test email" });
+  }
+});
+
 // Helper function to get sheet ID
 async function getSheetId(sheets, spreadsheetId, sheetName) {
   try {
