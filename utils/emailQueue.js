@@ -1,4 +1,5 @@
 const { sendTicketConfirmationEmail } = require('./emailService');
+const UserTicket = require('../models/userModel');
 
 class EmailQueue {
   constructor() {
@@ -57,18 +58,21 @@ class EmailQueue {
         
         if (result.success) {
           console.log(`✅ Email sent successfully to ${emailJob.data.email}`);
+          await this.updateEmailTrackingSuccess(emailJob);
         } else {
+          await this.updateEmailTrackingFailure(emailJob, result.error);
           this.handleEmailFailure(emailJob, result.error);
         }
-      } catch (error) {
-        console.error(`❌ Email error for ${emailJob.data.email}:`, error.message);
-        emailJob.errors.push({
-          timestamp: Date.now(),
-          error: error.message
-        });
-        
-        this.handleEmailFailure(emailJob, error);
-      }
+              } catch (error) {
+          console.error(`❌ Email error for ${emailJob.data.email}:`, error.message);
+          emailJob.errors.push({
+            timestamp: Date.now(),
+            error: error.message
+          });
+          
+          await this.updateEmailTrackingFailure(emailJob, error);
+          this.handleEmailFailure(emailJob, error);
+        }
 
       // Enhanced delay based on success/failure
       if (this.queue.length > 0) {
@@ -220,6 +224,58 @@ class EmailQueue {
     this.failedEmails = [];
     console.log(`🧹 Failed emails list cleared. ${clearedCount} emails removed`);
     return clearedCount;
+  }
+
+  // Update email tracking on success
+  async updateEmailTrackingSuccess(emailJob) {
+    try {
+      if (!emailJob.data.ticketId) return;
+
+      await UserTicket.findByIdAndUpdate(emailJob.data.ticketId, {
+        $set: {
+          'emailTracking.confirmationEmailSent': true,
+          'emailTracking.confirmationEmailSentAt': new Date(),
+          'emailTracking.lastEmailError': null,
+          'emailTracking.lastEmailErrorAt': null
+        },
+        $inc: {
+          'emailTracking.confirmationEmailAttempts': 1
+        },
+        $addToSet: {
+          'emailTracking.emailQueueJobIds': emailJob.id
+        }
+      });
+
+      console.log(`📝 Updated email tracking for ticket ${emailJob.data.ticketId} - SUCCESS`);
+    } catch (error) {
+      console.error(`❌ Failed to update email tracking for ${emailJob.data.ticketId}:`, error.message);
+    }
+  }
+
+  // Update email tracking on failure
+  async updateEmailTrackingFailure(emailJob, error) {
+    try {
+      if (!emailJob.data.ticketId) return;
+
+      const errorMessage = typeof error === 'string' ? error : error?.message || 'Unknown error';
+
+      await UserTicket.findByIdAndUpdate(emailJob.data.ticketId, {
+        $set: {
+          'emailTracking.lastEmailError': errorMessage,
+          'emailTracking.lastEmailErrorAt': new Date()
+        },
+        $inc: {
+          'emailTracking.confirmationEmailAttempts': 1
+        },
+        $addToSet: {
+          'emailTracking.emailQueueJobIds': emailJob.id
+        }
+      });
+
+      console.log(`📝 Updated email tracking for ticket ${emailJob.data.ticketId} - FAILURE: ${errorMessage}`);
+    } catch (error) {
+      console.error(`❌ Failed to update email tracking for ${emailJob.data.ticketId}:`, error.message);
+    }
   }
 }
 
