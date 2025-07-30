@@ -282,7 +282,20 @@ Category: ${ticketCategory}
     console.log('📧 API Key exists:', !!process.env.RESEND_API_KEY);
     console.log('📧 From:', 'MEDCON 2025 <noreply@medcongimsoc.com>');
     console.log('📧 To:', email);
-    console.log('📧 Subject:', "GIMSOC's MEDCON'25 – Payment Confirmation");
+    console.log('📧 Subject:', "GIMSOC's MEDCON'25 – Registration Confirmation");
+
+    // Check if API key is properly configured
+    if (!process.env.RESEND_API_KEY) {
+      const error = 'RESEND_API_KEY environment variable is not set';
+      console.error('❌ Configuration error:', error);
+      return { success: false, error };
+    }
+
+    if (!process.env.RESEND_API_KEY.startsWith('re_')) {
+      const error = 'RESEND_API_KEY format appears incorrect (should start with "re_")';
+      console.error('❌ Configuration error:', error);
+      return { success: false, error };
+    }
 
     // Resend API call - send directly to the user using custom domain email
     const { data, error } = await resend.emails.send({
@@ -294,6 +307,16 @@ Category: ${ticketCategory}
 
     if (error) {
       console.error('❌ Resend error:', error);
+      
+      // Log specific error types for better debugging
+      if (error.message && error.message.includes('rate limit')) {
+        console.error('🚨 Rate limit exceeded - emails will be retried with delay');
+      } else if (error.message && error.message.includes('unauthorized')) {
+        console.error('🚨 API Key authentication failed - check your RESEND_API_KEY');
+      } else if (error.message && error.message.includes('domain')) {
+        console.error('🚨 Domain verification issue - check your domain setup in Resend');
+      }
+      
       return { success: false, error };
     }
 

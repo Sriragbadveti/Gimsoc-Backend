@@ -71,6 +71,49 @@ const userTicketSchema = new mongoose.Schema({
     default: "pending"
   },
 
+  // Email Tracking
+  emailTracking: {
+    confirmationEmailSent: {
+      type: Boolean,
+      default: false
+    },
+    confirmationEmailSentAt: {
+      type: Date,
+      default: null
+    },
+    confirmationEmailAttempts: {
+      type: Number,
+      default: 0
+    },
+    approvalEmailSent: {
+      type: Boolean,
+      default: false
+    },
+    approvalEmailSentAt: {
+      type: Date,
+      default: null
+    },
+    rejectionEmailSent: {
+      type: Boolean,
+      default: false
+    },
+    rejectionEmailSentAt: {
+      type: Date,
+      default: null
+    },
+    lastEmailError: {
+      type: String,
+      default: null
+    },
+    lastEmailErrorAt: {
+      type: Date,
+      default: null
+    },
+    emailQueueJobIds: [{
+      type: String
+    }]
+  },
+
   createdAt: {
     type: Date,
     default: Date.now,

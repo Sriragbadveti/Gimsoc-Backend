@@ -292,9 +292,28 @@ router.patch("/approveticket/:ticketId", adminAuthMiddleware, async (req, res) =
           ticketType: ticket.ticketType,
           ticketCategory: ticket.ticketCategory,
         });
+        
+        // Update email tracking for approval
+        await UserTicket.findByIdAndUpdate(id, {
+          $set: {
+            'emailTracking.approvalEmailSent': true,
+            'emailTracking.approvalEmailSentAt': new Date(),
+            'emailTracking.lastEmailError': null,
+            'emailTracking.lastEmailErrorAt': null
+          }
+        });
+        
         console.log("✅ Approval email sent successfully to:", ticket.email);
       } catch (emailError) {
         console.error("❌ Failed to send approval email:", emailError);
+        
+        // Update email tracking for approval failure
+        await UserTicket.findByIdAndUpdate(id, {
+          $set: {
+            'emailTracking.lastEmailError': emailError.message || 'Approval email failed',
+            'emailTracking.lastEmailErrorAt': new Date()
+          }
+        });
       }
     } else if (paymentStatus === "rejected") {
       try {
@@ -304,9 +323,28 @@ router.patch("/approveticket/:ticketId", adminAuthMiddleware, async (req, res) =
           ticketType: ticket.ticketType,
           ticketCategory: ticket.ticketCategory,
         });
+        
+        // Update email tracking for rejection
+        await UserTicket.findByIdAndUpdate(id, {
+          $set: {
+            'emailTracking.rejectionEmailSent': true,
+            'emailTracking.rejectionEmailSentAt': new Date(),
+            'emailTracking.lastEmailError': null,
+            'emailTracking.lastEmailErrorAt': null
+          }
+        });
+        
         console.log("✅ Rejection email sent successfully to:", ticket.email);
       } catch (emailError) {
         console.error("❌ Failed to send rejection email:", emailError);
+        
+        // Update email tracking for rejection failure
+        await UserTicket.findByIdAndUpdate(id, {
+          $set: {
+            'emailTracking.lastEmailError': emailError.message || 'Rejection email failed',
+            'emailTracking.lastEmailErrorAt': new Date()
+          }
+        });
       }
     }
 
@@ -687,6 +725,682 @@ router.post("/clear-email-queue", adminAuthMiddleware, async (req, res) => {
     res.status(500).json({ error: "Failed to clear email queue" });
   }
 });
+
+// Get failed emails endpoint
+router.get("/failed-emails", adminAuthMiddleware, async (req, res) => {
+  try {
+    const emailQueue = require("../utils/emailQueue");
+    const failedEmails = emailQueue.getFailedEmails();
+    
+    res.json({
+      failedEmails: failedEmails,
+      count: failedEmails.length,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error("❌ Error getting failed emails:", error);
+    res.status(500).json({ error: "Failed to get failed emails" });
+  }
+});
+
+// Retry failed emails endpoint
+router.post("/retry-failed-emails", adminAuthMiddleware, async (req, res) => {
+  try {
+    const emailQueue = require("../utils/emailQueue");
+    const retriedCount = emailQueue.retryFailedEmails();
+    
+    res.json({
+      message: "Failed emails added back to queue",
+      retriedCount: retriedCount,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error("❌ Error retrying failed emails:", error);
+    res.status(500).json({ error: "Failed to retry failed emails" });
+  }
+});
+
+// Clear failed emails endpoint
+router.post("/clear-failed-emails", adminAuthMiddleware, async (req, res) => {
+  try {
+    const emailQueue = require("../utils/emailQueue");
+    const clearedCount = emailQueue.clearFailedEmails();
+    
+    res.json({
+      message: "Failed emails list cleared successfully",
+      clearedCount: clearedCount,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error("❌ Error clearing failed emails:", error);
+    res.status(500).json({ error: "Failed to clear failed emails" });
+  }
+});
+
+// Test email endpoint for debugging
+router.post("/test-email", adminAuthMiddleware, async (req, res) => {
+  try {
+    const { email, fullName } = req.body;
+    
+    if (!email || !fullName) {
+      return res.status(400).json({ error: "Email and fullName are required" });
+    }
+
+    const emailQueue = require("../utils/emailQueue");
+    const testEmailData = {
+      fullName: fullName,
+      email: email,
+      ticketType: "Test Email",
+      ticketCategory: "Admin Test",
+      ticketId: "TEST_" + Date.now()
+    };
+
+    const jobId = emailQueue.addToQueue(testEmailData);
+    
+    res.json({
+      message: "Test email queued successfully",
+      jobId: jobId,
+      emailData: testEmailData,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error("❌ Error sending test email:", error);
+    res.status(500).json({ error: "Failed to send test email" });
+  }
+});
+
+// Email Audit - Get all users with their email status
+router.get("/email-audit", adminAuthMiddleware, async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 50;
+    const skip = (page - 1) * limit;
+    
+    // Filter options
+    const filter = {};
+    if (req.query.emailStatus) {
+      switch (req.query.emailStatus) {
+        case 'sent':
+          filter['emailTracking.confirmationEmailSent'] = true;
+          break;
+        case 'not_sent':
+          filter['emailTracking.confirmationEmailSent'] = { $ne: true };
+          break;
+        case 'failed':
+          filter['emailTracking.lastEmailError'] = { $ne: null };
+          break;
+      }
+    }
+    
+    if (req.query.paymentStatus) {
+      filter.paymentStatus = req.query.paymentStatus;
+    }
+    
+    if (req.query.search) {
+      filter.$or = [
+        { fullName: { $regex: req.query.search, $options: 'i' } },
+        { email: { $regex: req.query.search, $options: 'i' } }
+      ];
+    }
+
+    const tickets = await UserTicket.find(filter)
+      .select('fullName email ticketType ticketCategory paymentStatus createdAt emailTracking')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit);
+
+    const totalCount = await UserTicket.countDocuments(filter);
+    
+    // Calculate email statistics
+    const emailStats = await UserTicket.aggregate([
+      { $match: {} },
+      {
+        $group: {
+          _id: null,
+          totalUsers: { $sum: 1 },
+          confirmationEmailsSent: {
+            $sum: { $cond: [{ $eq: ['$emailTracking.confirmationEmailSent', true] }, 1, 0] }
+          },
+          approvalEmailsSent: {
+            $sum: { $cond: [{ $eq: ['$emailTracking.approvalEmailSent', true] }, 1, 0] }
+          },
+          rejectionEmailsSent: {
+            $sum: { $cond: [{ $eq: ['$emailTracking.rejectionEmailSent', true] }, 1, 0] }
+          },
+          usersWithErrors: {
+            $sum: { $cond: [{ $ne: ['$emailTracking.lastEmailError', null] }, 1, 0] }
+          },
+          pendingUsers: {
+            $sum: { $cond: [{ $eq: ['$paymentStatus', 'pending'] }, 1, 0] }
+          },
+          completedUsers: {
+            $sum: { $cond: [{ $eq: ['$paymentStatus', 'completed'] }, 1, 0] }
+          },
+          rejectedUsers: {
+            $sum: { $cond: [{ $eq: ['$paymentStatus', 'rejected'] }, 1, 0] }
+          }
+        }
+      }
+    ]);
+
+    const stats = emailStats[0] || {
+      totalUsers: 0,
+      confirmationEmailsSent: 0,
+      approvalEmailsSent: 0,
+      rejectionEmailsSent: 0,
+      usersWithErrors: 0,
+      pendingUsers: 0,
+      completedUsers: 0,
+      rejectedUsers: 0
+    };
+
+    // Add calculated fields
+    stats.confirmationEmailsNotSent = stats.totalUsers - stats.confirmationEmailsSent;
+    stats.confirmationEmailSuccessRate = stats.totalUsers > 0 
+      ? ((stats.confirmationEmailsSent / stats.totalUsers) * 100).toFixed(2) + '%'
+      : '0%';
+
+    res.json({
+      tickets: tickets,
+      pagination: {
+        currentPage: page,
+        totalPages: Math.ceil(totalCount / limit),
+        totalCount: totalCount,
+        hasNext: page < Math.ceil(totalCount / limit),
+        hasPrev: page > 1
+      },
+      statistics: stats,
+      filters: {
+        emailStatus: req.query.emailStatus || 'all',
+        paymentStatus: req.query.paymentStatus || 'all',
+        search: req.query.search || ''
+      },
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error("❌ Error getting email audit:", error);
+    res.status(500).json({ error: "Failed to get email audit data" });
+  }
+});
+
+// Email Audit - Get users who haven't received confirmation emails
+router.get("/users-without-emails", adminAuthMiddleware, async (req, res) => {
+  try {
+    const tickets = await UserTicket.find({
+      $or: [
+        { 'emailTracking.confirmationEmailSent': { $ne: true } },
+        { 'emailTracking.confirmationEmailSent': { $exists: false } }
+      ]
+    })
+    .select('fullName email ticketType ticketCategory paymentStatus createdAt emailTracking')
+    .sort({ createdAt: -1 });
+
+    res.json({
+      count: tickets.length,
+      tickets: tickets,
+      message: `Found ${tickets.length} users who haven't received confirmation emails`,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error("❌ Error getting users without emails:", error);
+    res.status(500).json({ error: "Failed to get users without emails" });
+  }
+});
+
+// Email Audit - Get users with email errors
+router.get("/users-with-email-errors", adminAuthMiddleware, async (req, res) => {
+  try {
+    const tickets = await UserTicket.find({
+      'emailTracking.lastEmailError': { $ne: null }
+    })
+    .select('fullName email ticketType ticketCategory paymentStatus createdAt emailTracking')
+    .sort({ 'emailTracking.lastEmailErrorAt': -1 });
+
+    res.json({
+      count: tickets.length,
+      tickets: tickets,
+      message: `Found ${tickets.length} users with email errors`,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error("❌ Error getting users with email errors:", error);
+    res.status(500).json({ error: "Failed to get users with email errors" });
+  }
+});
+
+// Bulk resend confirmation emails to users who haven't received them
+router.post("/resend-confirmation-emails", adminAuthMiddleware, async (req, res) => {
+  try {
+    const { ticketIds, resendAll } = req.body;
+    
+    let filter = {};
+    
+    if (resendAll) {
+      // Resend to all users who haven't received confirmation emails
+      filter = {
+        $or: [
+          { 'emailTracking.confirmationEmailSent': { $ne: true } },
+          { 'emailTracking.confirmationEmailSent': { $exists: false } }
+        ]
+      };
+    } else if (ticketIds && Array.isArray(ticketIds)) {
+      // Resend to specific ticket IDs
+      filter = { _id: { $in: ticketIds } };
+    } else {
+      return res.status(400).json({ 
+        error: "Either provide ticketIds array or set resendAll to true" 
+      });
+    }
+
+    const tickets = await UserTicket.find(filter)
+      .select('fullName email ticketType ticketCategory _id');
+
+    if (tickets.length === 0) {
+      return res.json({
+        message: "No tickets found matching the criteria",
+        queuedCount: 0,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    const emailQueue = require("../utils/emailQueue");
+    let queuedCount = 0;
+    const queuedTickets = [];
+
+    for (const ticket of tickets) {
+      const emailData = {
+        fullName: ticket.fullName,
+        email: ticket.email,
+        ticketType: ticket.ticketType,
+        ticketCategory: ticket.ticketCategory,
+        ticketId: ticket._id.toString()
+      };
+
+      const jobId = emailQueue.addToQueue(emailData);
+      queuedCount++;
+      queuedTickets.push({
+        ticketId: ticket._id,
+        email: ticket.email,
+        fullName: ticket.fullName,
+        jobId: jobId
+      });
+    }
+
+    res.json({
+      message: `Successfully queued ${queuedCount} confirmation emails for resending`,
+      queuedCount: queuedCount,
+      queuedTickets: queuedTickets,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error("❌ Error resending confirmation emails:", error);
+    res.status(500).json({ error: "Failed to resend confirmation emails" });
+  }
+});
+
+// Resend approval/rejection emails based on current payment status
+router.post("/resend-status-emails", adminAuthMiddleware, async (req, res) => {
+  try {
+    const { ticketIds, emailType } = req.body; // emailType: 'approval' or 'rejection'
+    
+    if (!ticketIds || !Array.isArray(ticketIds)) {
+      return res.status(400).json({ error: "ticketIds array is required" });
+    }
+
+    if (!emailType || !['approval', 'rejection'].includes(emailType)) {
+      return res.status(400).json({ 
+        error: "emailType must be either 'approval' or 'rejection'" 
+      });
+    }
+
+    const requiredStatus = emailType === 'approval' ? 'completed' : 'rejected';
+    const tickets = await UserTicket.find({
+      _id: { $in: ticketIds },
+      paymentStatus: requiredStatus
+    });
+
+    if (tickets.length === 0) {
+      return res.json({
+        message: `No tickets found with ${requiredStatus} status`,
+        sentCount: 0,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    const { sendTicketApprovalEmail, sendTicketRejectionEmail } = require("../utils/emailService.js");
+    const sendFunction = emailType === 'approval' ? sendTicketApprovalEmail : sendTicketRejectionEmail;
+    
+    let sentCount = 0;
+    const results = [];
+
+    for (const ticket of tickets) {
+      try {
+        await sendFunction({
+          fullName: ticket.fullName,
+          email: ticket.email,
+          ticketType: ticket.ticketType,
+          ticketCategory: ticket.ticketCategory,
+        });
+
+        // Update email tracking
+        const updateField = emailType === 'approval' 
+          ? 'emailTracking.approvalEmailSent' 
+          : 'emailTracking.rejectionEmailSent';
+        const updateDateField = emailType === 'approval'
+          ? 'emailTracking.approvalEmailSentAt'
+          : 'emailTracking.rejectionEmailSentAt';
+
+        await UserTicket.findByIdAndUpdate(ticket._id, {
+          $set: {
+            [updateField]: true,
+            [updateDateField]: new Date(),
+            'emailTracking.lastEmailError': null,
+            'emailTracking.lastEmailErrorAt': null
+          }
+        });
+
+        sentCount++;
+        results.push({
+          ticketId: ticket._id,
+          email: ticket.email,
+          status: 'sent'
+        });
+
+      } catch (error) {
+        console.error(`❌ Failed to send ${emailType} email to ${ticket.email}:`, error);
+        
+        await UserTicket.findByIdAndUpdate(ticket._id, {
+          $set: {
+            'emailTracking.lastEmailError': error.message || `${emailType} email failed`,
+            'emailTracking.lastEmailErrorAt': new Date()
+          }
+        });
+
+        results.push({
+          ticketId: ticket._id,
+          email: ticket.email,
+          status: 'failed',
+          error: error.message
+        });
+      }
+    }
+
+    res.json({
+      message: `Resent ${sentCount} ${emailType} emails out of ${tickets.length} tickets`,
+      sentCount: sentCount,
+      totalCount: tickets.length,
+      results: results,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error("❌ Error resending status emails:", error);
+    res.status(500).json({ error: "Failed to resend status emails" });
+  }
+});
+
+// Parse and analyze email logs from Render logs
+router.post("/analyze-render-logs", adminAuthMiddleware, async (req, res) => {
+  try {
+    const { logText } = req.body;
+    
+    if (!logText) {
+      return res.status(400).json({ error: "logText is required" });
+    }
+
+    const EmailLogger = require("../utils/emailLogger");
+    
+    // Extract email logs from the provided log text
+    const emailLogs = EmailLogger.extractEmailLogs(logText);
+    
+    if (emailLogs.length === 0) {
+      return res.json({
+        message: "No email logs found in the provided text",
+        emailLogs: [],
+        summary: null,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // Analyze the extracted logs
+    const analysis = EmailLogger.analyzeEmailLogs(emailLogs);
+    
+    res.json({
+      message: `Found ${emailLogs.length} email log entries`,
+      emailLogs: emailLogs,
+      summary: analysis,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error("❌ Error analyzing render logs:", error);
+    res.status(500).json({ error: "Failed to analyze render logs" });
+  }
+});
+
+// Get email logs from local file (if available)
+router.get("/email-logs", adminAuthMiddleware, async (req, res) => {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const EmailLogger = require("../utils/emailLogger");
+    
+    const logFile = path.join(__dirname, '../logs/email.log');
+    
+    if (!fs.existsSync(logFile)) {
+      return res.json({
+        message: "No local email log file found. Use /analyze-render-logs to analyze Render logs.",
+        emailLogs: [],
+        summary: null,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    const logText = fs.readFileSync(logFile, 'utf8');
+    const emailLogs = EmailLogger.extractEmailLogs(logText);
+    const analysis = EmailLogger.analyzeEmailLogs(emailLogs);
+    
+    res.json({
+      message: `Found ${emailLogs.length} email log entries from local file`,
+      emailLogs: emailLogs,
+      summary: analysis,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error("❌ Error reading email logs:", error);
+    res.status(500).json({ error: "Failed to read email logs" });
+  }
+});
+
+// Search for a specific user in Render logs
+router.post("/search-user-in-logs", adminAuthMiddleware, async (req, res) => {
+  try {
+    const { logText, email } = req.body;
+    
+    if (!logText || !email) {
+      return res.status(400).json({ error: "Both logText and email are required" });
+    }
+
+    const RenderLogParser = require("../utils/renderLogParser");
+    const parser = new RenderLogParser();
+    
+    // Search for user in logs
+    const logSearch = parser.getUserActivityReport(logText, email);
+    
+    // Check if user exists in database
+    const UserTicket = require("../models/userModel");
+    const dbUser = await UserTicket.findOne({ 
+      email: email.toLowerCase() 
+    }).select('fullName email ticketType paymentStatus createdAt emailTracking');
+    
+    logSearch.inDatabase = !!dbUser;
+    logSearch.databaseRecord = dbUser;
+    
+    // Determine user status
+    let userStatus = 'NOT_FOUND';
+    if (dbUser && logSearch.found) {
+      userStatus = 'IN_DATABASE_AND_LOGS';
+    } else if (dbUser && !logSearch.found) {
+      userStatus = 'IN_DATABASE_ONLY';
+    } else if (!dbUser && logSearch.found) {
+      userStatus = 'IN_LOGS_ONLY';
+    }
+    
+    res.json({
+      searchEmail: email,
+      userStatus: userStatus,
+      found: logSearch.found || !!dbUser,
+      ...logSearch,
+      recommendations: generateUserRecommendations(userStatus, logSearch, dbUser),
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error("❌ Error searching user in logs:", error);
+    res.status(500).json({ error: "Failed to search user in logs" });
+  }
+});
+
+// Find all users who attempted registration but failed
+router.post("/find-failed-registrations", adminAuthMiddleware, async (req, res) => {
+  try {
+    const { logText } = req.body;
+    
+    if (!logText) {
+      return res.status(400).json({ error: "logText is required" });
+    }
+
+    const RenderLogParser = require("../utils/renderLogParser");
+    const parser = new RenderLogParser();
+    
+    // Find failed registrations
+    const failedRegistrations = parser.findFailedRegistrations(logText);
+    
+    // Check which of these users are actually in the database
+    const UserTicket = require("../models/userModel");
+    const emailsToCheck = failedRegistrations.map(user => user.email);
+    
+    const existingUsers = await UserTicket.find({
+      email: { $in: emailsToCheck }
+    }).select('email fullName paymentStatus');
+    
+    const existingEmails = new Set(existingUsers.map(user => user.email.toLowerCase()));
+    
+    // Categorize failed registrations
+    const trulyFailedRegistrations = failedRegistrations.filter(user => 
+      !existingEmails.has(user.email.toLowerCase())
+    );
+    
+    const falsePositives = failedRegistrations.filter(user => 
+      existingEmails.has(user.email.toLowerCase())
+    );
+    
+    res.json({
+      message: `Found ${failedRegistrations.length} potential failed registrations`,
+      totalAttempts: failedRegistrations.length,
+      trulyFailed: trulyFailedRegistrations.length,
+      falsePositives: falsePositives.length,
+      failedRegistrations: trulyFailedRegistrations,
+      falsePositiveRegistrations: falsePositives,
+      existingUsers: existingUsers,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error("❌ Error finding failed registrations:", error);
+    res.status(500).json({ error: "Failed to find failed registrations" });
+  }
+});
+
+// Extract all emails from logs (useful for finding potential users)
+router.post("/extract-emails-from-logs", adminAuthMiddleware, async (req, res) => {
+  try {
+    const { logText } = req.body;
+    
+    if (!logText) {
+      return res.status(400).json({ error: "logText is required" });
+    }
+
+    const RenderLogParser = require("../utils/renderLogParser");
+    const parser = new RenderLogParser();
+    
+    // Extract all emails
+    const allEmails = parser.extractAllEmails(logText);
+    
+    // Check which emails are in database
+    const UserTicket = require("../models/userModel");
+    const existingUsers = await UserTicket.find({
+      email: { $in: allEmails }
+    }).select('email fullName paymentStatus emailTracking.confirmationEmailSent');
+    
+    const existingEmails = new Set(existingUsers.map(user => user.email.toLowerCase()));
+    
+    const emailsInDatabase = allEmails.filter(email => 
+      existingEmails.has(email.toLowerCase())
+    );
+    
+    const emailsNotInDatabase = allEmails.filter(email => 
+      !existingEmails.has(email.toLowerCase())
+    );
+    
+    res.json({
+      message: `Found ${allEmails.length} unique emails in logs`,
+      totalEmails: allEmails.length,
+      inDatabase: emailsInDatabase.length,
+      notInDatabase: emailsNotInDatabase.length,
+      allEmails: allEmails,
+      emailsInDatabase: emailsInDatabase,
+      emailsNotInDatabase: emailsNotInDatabase,
+      existingUsers: existingUsers,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error("❌ Error extracting emails from logs:", error);
+    res.status(500).json({ error: "Failed to extract emails from logs" });
+  }
+});
+
+// Helper function to generate recommendations
+function generateUserRecommendations(userStatus, logSearch, dbUser) {
+  const recommendations = [];
+  
+  switch (userStatus) {
+    case 'IN_DATABASE_AND_LOGS':
+      if (dbUser && !dbUser.emailTracking?.confirmationEmailSent) {
+        recommendations.push('User is in database but may not have received confirmation email - consider resending');
+      }
+      if (logSearch.logActivity.analysis.errors.length > 0) {
+        recommendations.push('User experienced errors during registration - check log details');
+      }
+      break;
+      
+    case 'IN_DATABASE_ONLY':
+      recommendations.push('User exists in database but no log activity found - may have registered before logging was implemented');
+      break;
+      
+    case 'IN_LOGS_ONLY':
+      if (logSearch.logActivity.analysis.conclusion === 'REGISTRATION_FAILED') {
+        recommendations.push('User attempted registration but failed - investigate the errors and possibly contact user');
+      }
+      if (logSearch.logActivity.analysis.conclusion === 'DUPLICATE_EMAIL') {
+        recommendations.push('User tried to register with existing email - they may already have an account');
+      }
+      recommendations.push('User has log activity but is not in database - registration may have failed');
+      break;
+      
+    case 'NOT_FOUND':
+      recommendations.push('No trace of this user found - they may not have attempted registration');
+      break;
+  }
+  
+  return recommendations;
+}
 
 // Helper function to get sheet ID
 async function getSheetId(sheets, spreadsheetId, sheetName) {
