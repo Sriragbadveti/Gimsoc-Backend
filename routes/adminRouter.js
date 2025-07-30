@@ -1217,6 +1217,191 @@ router.get("/email-logs", adminAuthMiddleware, async (req, res) => {
   }
 });
 
+// Search for a specific user in Render logs
+router.post("/search-user-in-logs", adminAuthMiddleware, async (req, res) => {
+  try {
+    const { logText, email } = req.body;
+    
+    if (!logText || !email) {
+      return res.status(400).json({ error: "Both logText and email are required" });
+    }
+
+    const RenderLogParser = require("../utils/renderLogParser");
+    const parser = new RenderLogParser();
+    
+    // Search for user in logs
+    const logSearch = parser.getUserActivityReport(logText, email);
+    
+    // Check if user exists in database
+    const UserTicket = require("../models/userModel");
+    const dbUser = await UserTicket.findOne({ 
+      email: email.toLowerCase() 
+    }).select('fullName email ticketType paymentStatus createdAt emailTracking');
+    
+    logSearch.inDatabase = !!dbUser;
+    logSearch.databaseRecord = dbUser;
+    
+    // Determine user status
+    let userStatus = 'NOT_FOUND';
+    if (dbUser && logSearch.found) {
+      userStatus = 'IN_DATABASE_AND_LOGS';
+    } else if (dbUser && !logSearch.found) {
+      userStatus = 'IN_DATABASE_ONLY';
+    } else if (!dbUser && logSearch.found) {
+      userStatus = 'IN_LOGS_ONLY';
+    }
+    
+    res.json({
+      searchEmail: email,
+      userStatus: userStatus,
+      found: logSearch.found || !!dbUser,
+      ...logSearch,
+      recommendations: generateUserRecommendations(userStatus, logSearch, dbUser),
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error("❌ Error searching user in logs:", error);
+    res.status(500).json({ error: "Failed to search user in logs" });
+  }
+});
+
+// Find all users who attempted registration but failed
+router.post("/find-failed-registrations", adminAuthMiddleware, async (req, res) => {
+  try {
+    const { logText } = req.body;
+    
+    if (!logText) {
+      return res.status(400).json({ error: "logText is required" });
+    }
+
+    const RenderLogParser = require("../utils/renderLogParser");
+    const parser = new RenderLogParser();
+    
+    // Find failed registrations
+    const failedRegistrations = parser.findFailedRegistrations(logText);
+    
+    // Check which of these users are actually in the database
+    const UserTicket = require("../models/userModel");
+    const emailsToCheck = failedRegistrations.map(user => user.email);
+    
+    const existingUsers = await UserTicket.find({
+      email: { $in: emailsToCheck }
+    }).select('email fullName paymentStatus');
+    
+    const existingEmails = new Set(existingUsers.map(user => user.email.toLowerCase()));
+    
+    // Categorize failed registrations
+    const trulyFailedRegistrations = failedRegistrations.filter(user => 
+      !existingEmails.has(user.email.toLowerCase())
+    );
+    
+    const falsePositives = failedRegistrations.filter(user => 
+      existingEmails.has(user.email.toLowerCase())
+    );
+    
+    res.json({
+      message: `Found ${failedRegistrations.length} potential failed registrations`,
+      totalAttempts: failedRegistrations.length,
+      trulyFailed: trulyFailedRegistrations.length,
+      falsePositives: falsePositives.length,
+      failedRegistrations: trulyFailedRegistrations,
+      falsePositiveRegistrations: falsePositives,
+      existingUsers: existingUsers,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error("❌ Error finding failed registrations:", error);
+    res.status(500).json({ error: "Failed to find failed registrations" });
+  }
+});
+
+// Extract all emails from logs (useful for finding potential users)
+router.post("/extract-emails-from-logs", adminAuthMiddleware, async (req, res) => {
+  try {
+    const { logText } = req.body;
+    
+    if (!logText) {
+      return res.status(400).json({ error: "logText is required" });
+    }
+
+    const RenderLogParser = require("../utils/renderLogParser");
+    const parser = new RenderLogParser();
+    
+    // Extract all emails
+    const allEmails = parser.extractAllEmails(logText);
+    
+    // Check which emails are in database
+    const UserTicket = require("../models/userModel");
+    const existingUsers = await UserTicket.find({
+      email: { $in: allEmails }
+    }).select('email fullName paymentStatus emailTracking.confirmationEmailSent');
+    
+    const existingEmails = new Set(existingUsers.map(user => user.email.toLowerCase()));
+    
+    const emailsInDatabase = allEmails.filter(email => 
+      existingEmails.has(email.toLowerCase())
+    );
+    
+    const emailsNotInDatabase = allEmails.filter(email => 
+      !existingEmails.has(email.toLowerCase())
+    );
+    
+    res.json({
+      message: `Found ${allEmails.length} unique emails in logs`,
+      totalEmails: allEmails.length,
+      inDatabase: emailsInDatabase.length,
+      notInDatabase: emailsNotInDatabase.length,
+      allEmails: allEmails,
+      emailsInDatabase: emailsInDatabase,
+      emailsNotInDatabase: emailsNotInDatabase,
+      existingUsers: existingUsers,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error("❌ Error extracting emails from logs:", error);
+    res.status(500).json({ error: "Failed to extract emails from logs" });
+  }
+});
+
+// Helper function to generate recommendations
+function generateUserRecommendations(userStatus, logSearch, dbUser) {
+  const recommendations = [];
+  
+  switch (userStatus) {
+    case 'IN_DATABASE_AND_LOGS':
+      if (dbUser && !dbUser.emailTracking?.confirmationEmailSent) {
+        recommendations.push('User is in database but may not have received confirmation email - consider resending');
+      }
+      if (logSearch.logActivity.analysis.errors.length > 0) {
+        recommendations.push('User experienced errors during registration - check log details');
+      }
+      break;
+      
+    case 'IN_DATABASE_ONLY':
+      recommendations.push('User exists in database but no log activity found - may have registered before logging was implemented');
+      break;
+      
+    case 'IN_LOGS_ONLY':
+      if (logSearch.logActivity.analysis.conclusion === 'REGISTRATION_FAILED') {
+        recommendations.push('User attempted registration but failed - investigate the errors and possibly contact user');
+      }
+      if (logSearch.logActivity.analysis.conclusion === 'DUPLICATE_EMAIL') {
+        recommendations.push('User tried to register with existing email - they may already have an account');
+      }
+      recommendations.push('User has log activity but is not in database - registration may have failed');
+      break;
+      
+    case 'NOT_FOUND':
+      recommendations.push('No trace of this user found - they may not have attempted registration');
+      break;
+  }
+  
+  return recommendations;
+}
+
 // Helper function to get sheet ID
 async function getSheetId(sheets, spreadsheetId, sheetName) {
   try {
