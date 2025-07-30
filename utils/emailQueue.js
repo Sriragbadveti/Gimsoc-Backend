@@ -1,5 +1,6 @@
 const { sendTicketConfirmationEmail } = require('./emailService');
 const UserTicket = require('../models/userModel');
+const EmailLogger = require('./emailLogger');
 
 class EmailQueue {
   constructor() {
@@ -9,6 +10,7 @@ class EmailQueue {
     this.delayBetweenEmails = 2000; // 2 seconds between emails (Resend allows 2 req/sec)
     this.rateLimitDelay = 5000; // 5 seconds delay when rate limited
     this.failedEmails = []; // Track permanently failed emails
+    this.emailLogger = new EmailLogger();
   }
 
   // Add email to queue
@@ -24,6 +26,9 @@ class EmailQueue {
     
     this.queue.push(emailJob);
     console.log(`📧 Email queued for ${emailData.email}. Queue length: ${this.queue.length}`);
+    
+    // Log structured email queued event
+    this.emailLogger.logEmailQueued(emailData, emailJob.id);
     
     // Start processing if not already running
     if (!this.isProcessing) {
@@ -58,8 +63,10 @@ class EmailQueue {
         
         if (result.success) {
           console.log(`✅ Email sent successfully to ${emailJob.data.email}`);
+          this.emailLogger.logEmailSent(emailJob.data, emailJob.id, result.data);
           await this.updateEmailTrackingSuccess(emailJob);
         } else {
+          this.emailLogger.logEmailFailed(emailJob.data, emailJob.id, result.error, emailJob.retries);
           await this.updateEmailTrackingFailure(emailJob, result.error);
           this.handleEmailFailure(emailJob, result.error);
         }
@@ -70,6 +77,7 @@ class EmailQueue {
             error: error.message
           });
           
+          this.emailLogger.logEmailFailed(emailJob.data, emailJob.id, error, emailJob.retries);
           await this.updateEmailTrackingFailure(emailJob, error);
           this.handleEmailFailure(emailJob, error);
         }
@@ -122,12 +130,15 @@ class EmailQueue {
       if (isRateLimit) {
         console.log(`⏱️ Rate limit detected, adding extra delay for ${emailJob.data.email}`);
         emailJob.rateLimited = true;
+        this.emailLogger.logRateLimit(this.rateLimitDelay);
       }
       
       this.queue.unshift(emailJob); // Add back to front of queue
       console.log(`🔄 Retrying email for ${emailJob.data.email} (${emailJob.retries}/${this.maxRetries})`);
+      this.emailLogger.logEmailRetry(emailJob.data, emailJob.id, emailJob.retries, this.maxRetries);
     } else {
       console.error(`💀 Email permanently failed for ${emailJob.data.email} after ${this.maxRetries} retries`);
+      this.emailLogger.logEmailPermanentFailure(emailJob.data, emailJob.id, errorMessage);
       this.failedEmails.push({
         ...emailJob,
         failureReason: 'MAX_RETRIES_EXCEEDED',

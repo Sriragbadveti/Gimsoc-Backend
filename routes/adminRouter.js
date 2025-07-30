@@ -1143,6 +1143,80 @@ router.post("/resend-status-emails", adminAuthMiddleware, async (req, res) => {
   }
 });
 
+// Parse and analyze email logs from Render logs
+router.post("/analyze-render-logs", adminAuthMiddleware, async (req, res) => {
+  try {
+    const { logText } = req.body;
+    
+    if (!logText) {
+      return res.status(400).json({ error: "logText is required" });
+    }
+
+    const EmailLogger = require("../utils/emailLogger");
+    
+    // Extract email logs from the provided log text
+    const emailLogs = EmailLogger.extractEmailLogs(logText);
+    
+    if (emailLogs.length === 0) {
+      return res.json({
+        message: "No email logs found in the provided text",
+        emailLogs: [],
+        summary: null,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // Analyze the extracted logs
+    const analysis = EmailLogger.analyzeEmailLogs(emailLogs);
+    
+    res.json({
+      message: `Found ${emailLogs.length} email log entries`,
+      emailLogs: emailLogs,
+      summary: analysis,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error("❌ Error analyzing render logs:", error);
+    res.status(500).json({ error: "Failed to analyze render logs" });
+  }
+});
+
+// Get email logs from local file (if available)
+router.get("/email-logs", adminAuthMiddleware, async (req, res) => {
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const EmailLogger = require("../utils/emailLogger");
+    
+    const logFile = path.join(__dirname, '../logs/email.log');
+    
+    if (!fs.existsSync(logFile)) {
+      return res.json({
+        message: "No local email log file found. Use /analyze-render-logs to analyze Render logs.",
+        emailLogs: [],
+        summary: null,
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    const logText = fs.readFileSync(logFile, 'utf8');
+    const emailLogs = EmailLogger.extractEmailLogs(logText);
+    const analysis = EmailLogger.analyzeEmailLogs(emailLogs);
+    
+    res.json({
+      message: `Found ${emailLogs.length} email log entries from local file`,
+      emailLogs: emailLogs,
+      summary: analysis,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error("❌ Error reading email logs:", error);
+    res.status(500).json({ error: "Failed to read email logs" });
+  }
+});
+
 // Helper function to get sheet ID
 async function getSheetId(sheets, spreadsheetId, sheetName) {
   try {
