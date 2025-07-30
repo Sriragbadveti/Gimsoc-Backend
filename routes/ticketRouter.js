@@ -550,20 +550,61 @@ router.post("/submit", ticketSubmissionRateLimit, upload.any(), async (req, res)
     const tsuEmailLower = tsuEmail ? tsuEmail.toLowerCase().trim() : null;
     const geomediEmailLower = req.body.geomediEmail ? req.body.geomediEmail.toLowerCase().trim() : null;
 
+    // Fix galaDinner field - ensure it's a string, not an array
+    let galaDinnerValue = finalGalaDinner;
+    console.log("🔍 Original galaDinner value:", finalGalaDinner, "Type:", typeof finalGalaDinner);
+    
+    if (Array.isArray(galaDinnerValue)) {
+      // If it's an array, take the first non-empty value
+      galaDinnerValue = galaDinnerValue.find(val => val && val.trim() !== '') || null;
+      console.log("🔧 Fixed galaDinner array to string:", galaDinnerValue);
+    } else if (typeof galaDinnerValue === 'string' && galaDinnerValue.startsWith('[')) {
+      // If it's a string representation of an array, parse it
+      try {
+        const parsedArray = JSON.parse(galaDinnerValue);
+        galaDinnerValue = Array.isArray(parsedArray) ? parsedArray[0] || null : galaDinnerValue;
+        console.log("🔧 Fixed galaDinner JSON string to string:", galaDinnerValue);
+      } catch (e) {
+        console.log("🔧 Could not parse galaDinner as JSON, using as-is:", galaDinnerValue);
+      }
+    }
+    
+    console.log("🔧 Final galaDinner value:", galaDinnerValue, "Type:", typeof galaDinnerValue);
+
+    // Helper function to ensure string fields are not arrays
+    const ensureString = (value, fieldName) => {
+      if (Array.isArray(value)) {
+        const stringValue = value.find(val => val && val.trim() !== '') || null;
+        console.log(`🔧 Fixed ${fieldName} array to string:`, stringValue);
+        return stringValue;
+      } else if (typeof value === 'string' && value.startsWith('[')) {
+        try {
+          const parsedArray = JSON.parse(value);
+          const stringValue = Array.isArray(parsedArray) ? parsedArray[0] || null : value;
+          console.log(`🔧 Fixed ${fieldName} JSON string to string:`, stringValue);
+          return stringValue;
+        } catch (e) {
+          console.log(`🔧 Could not parse ${fieldName} as JSON, using as-is:`, value);
+          return value;
+        }
+      }
+      return value;
+    };
+
     const newTicket = new UserTicket({
       ticketType,
       ticketCategory: ticketCategoryValue,
       subType: subTypeValue,
       email: emailLower,
-      whatsapp,
+      whatsapp: ensureString(whatsapp, "whatsapp"),
       password: password, // Keep original password
       dashboardPassword: dashboardPassword, // Save dashboard password separately
-      workshopPackage,
-      foodPreference,
-      dietaryRestrictions,
-      accessibilityNeeds,
-      galaDinner: finalGalaDinner || null, // Use final gala dinner value (auto-included for all-inclusive doctor tickets)
-      paymentMethod,
+      workshopPackage: ensureString(workshopPackage, "workshopPackage"),
+      foodPreference: ensureString(foodPreference, "foodPreference"),
+      dietaryRestrictions: ensureString(dietaryRestrictions, "dietaryRestrictions"),
+      accessibilityNeeds: ensureString(accessibilityNeeds, "accessibilityNeeds"),
+      galaDinner: galaDinnerValue, // Use the fixed gala dinner value
+      paymentMethod: ensureString(paymentMethod, "paymentMethod"),
       discountConfirmation: toBool(discountConfirmation),
       infoAccurate: toBool(infoAccurate),
       mediaConsent: toBool(mediaConsent),
