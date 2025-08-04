@@ -90,9 +90,10 @@ app.use((req, res, next) => {
   const start = Date.now();
   const requestId = Date.now() + Math.random().toString(36).substr(2, 9);
   
-  // Reduce logging for admin auto-refresh requests
+  // Reduce logging for admin auto-refresh requests and frequent checks
   const isAdminRefresh = req.path.includes('/api/admin/getalltickets') || req.path.includes('/api/admin/ticket-summary');
-  const shouldLog = !isAdminRefresh;
+  const isGalaCheck = req.path.includes('/api/form/gala-availability');
+  const shouldLog = !isAdminRefresh && !isGalaCheck;
   
   if (shouldLog) {
     console.log(`🌐 [${requestId}] ${req.method} ${req.path} - Origin: ${req.headers.origin} - Started`);

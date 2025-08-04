@@ -7,16 +7,14 @@ const adminAuthMiddleware = async (req, res, next) => {
   try {
     // Check for token in cookies first, then in Authorization header
     let token = req.cookies.adminToken;
-    console.log("🔍 Admin auth middleware - Token from cookies:", token ? "Present" : "Missing");
-    console.log("🔍 All cookies:", req.cookies);
-    console.log("🔍 Authorization header:", req.headers.authorization);
+    // Silent auth - only log on errors
 
     if (!token && req.headers.authorization) {
       // Extract token from Authorization header (Bearer token)
       const authHeader = req.headers.authorization;
       if (authHeader.startsWith('Bearer ')) {
         token = authHeader.substring(7); // Remove 'Bearer ' prefix
-        console.log("🔍 Admin auth middleware - Token from Authorization header: Present");
+        // Silent token extraction
       }
     }
 
@@ -25,13 +23,12 @@ const adminAuthMiddleware = async (req, res, next) => {
       return res.status(401).json({ message: "Admin access token not found" });
     }
 
-    console.log("🔍 Attempting to verify admin token with secret:", secret);
+    // Silent token verification
     const decoded = jwt.verify(token, secret);
-    console.log("🔍 Decoded admin token:", decoded);
     
     // Find the admin directly in Admin model
     const admin = await Admin.findById(decoded.adminId);
-    console.log("🔍 Admin found:", admin ? "Yes" : "No");
+    // Silent admin lookup
 
     if (!admin) {
       console.log("❌ No admin found with ID:", decoded.adminId);
@@ -46,7 +43,7 @@ const adminAuthMiddleware = async (req, res, next) => {
       });
     }
 
-    console.log("✅ Admin auth successful for user:", admin.email);
+    // Silent successful auth - only log on errors
 
     req.admin = {
       id: admin._id,
