@@ -90,7 +90,13 @@ app.use((req, res, next) => {
   const start = Date.now();
   const requestId = Date.now() + Math.random().toString(36).substr(2, 9);
   
-  console.log(`🌐 [${requestId}] ${req.method} ${req.path} - Origin: ${req.headers.origin} - Started`);
+  // Reduce logging for admin auto-refresh requests
+  const isAdminRefresh = req.path.includes('/api/admin/getalltickets') || req.path.includes('/api/admin/ticket-summary');
+  const shouldLog = !isAdminRefresh;
+  
+  if (shouldLog) {
+    console.log(`🌐 [${requestId}] ${req.method} ${req.path} - Origin: ${req.headers.origin} - Started`);
+  }
   
   // Enhanced CORS headers for all requests
   const origin = req.headers.origin || 'https://www.medcongimsoc.com';
@@ -103,7 +109,11 @@ app.use((req, res, next) => {
   // Log response time
   res.on('finish', () => {
     const duration = Date.now() - start;
-    console.log(`✅ [${requestId}] ${req.method} ${req.path} - ${res.statusCode} - ${duration}ms`);
+    
+    // Only log admin refresh requests if they're slow or have errors
+    if (shouldLog || duration > 5000 || res.statusCode >= 400) {
+      console.log(`✅ [${requestId}] ${req.method} ${req.path} - ${res.statusCode} - ${duration}ms`);
+    }
     
     // Log slow requests
     if (duration > 5000) {

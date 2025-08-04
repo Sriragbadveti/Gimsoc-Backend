@@ -104,20 +104,13 @@ router.get("/test-sheets", async (req, res) => {
 // GET ALL TICKETS for ADMIN dashboard
 router.get("/getalltickets", adminAuthMiddleware, async (req, res) => {
   try {
-    console.log("🔍 Fetching all tickets...");
+    // Silent fetch - only log on errors
     // Assuming your model is named UserTicket
     const tickets = await UserTicket.find()
       .sort({ createdAt: -1 }) // latest tickets first
       .lean();
 
-    console.log("📊 Found tickets:", tickets.length);
-    tickets.forEach((ticket, index) => {
-      console.log(`Ticket ${index + 1}:`, {
-        id: ticket._id,
-        name: ticket.fullName,
-        status: ticket.paymentStatus || "null/undefined"
-      });
-    });
+    // Silent processing - no individual ticket logging
 
     // Map tickets to include all detailed information
     const processedTickets = tickets.map(ticket => ({
@@ -180,7 +173,7 @@ router.get("/getalltickets", adminAuthMiddleware, async (req, res) => {
 // GET TICKET SUMMARY STATISTICS (excluding rejected tickets)
 router.get("/ticket-summary", adminAuthMiddleware, async (req, res) => {
   try {
-    console.log("📊 Fetching ticket summary statistics...");
+    // Silent fetch - only log on errors
     
     // Get counts - pending and completed count towards limits, rejected don't
     const summary = {
@@ -234,7 +227,7 @@ router.get("/ticket-summary", adminAuthMiddleware, async (req, res) => {
       galaLimit: 150
     };
     
-    console.log("📊 Ticket summary:", summary);
+    // Silent response - no summary logging
     return res.status(200).json(summary);
   } catch (err) {
     console.error("Error fetching ticket summary:", err);
