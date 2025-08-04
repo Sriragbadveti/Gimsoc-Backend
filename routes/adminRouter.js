@@ -10,12 +10,18 @@ const mongoose = require("mongoose"); // Added for system status
 
 const router = express.Router();
 
-// Handle OPTIONS requests for admin routes
+// Specific middleware for handling large payloads in admin routes
+router.use(express.json({ limit: '100mb' }));
+router.use(express.urlencoded({ extended: true, limit: '100mb' }));
+
+// Handle OPTIONS requests for admin routes with enhanced CORS
 router.options('*', (req, res) => {
-  res.header('Access-Control-Allow-Origin', req.headers.origin);
+  const origin = req.headers.origin || 'https://www.medcongimsoc.com';
+  res.header('Access-Control-Allow-Origin', origin);
   res.header('Access-Control-Allow-Credentials', 'true');
   res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
   res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  res.header('Access-Control-Max-Age', '86400'); // 24 hours
   res.status(200).end();
 });
 
@@ -356,6 +362,16 @@ router.post("/export-to-sheets", adminAuthMiddleware, async (req, res) => {
     console.log("- GOOGLE_CREDENTIALS_BASE64:", process.env.GOOGLE_CREDENTIALS_BASE64 ? "Set" : "Not set");
     console.log("- GOOGLE_SHEET_ID:", process.env.GOOGLE_SHEET_ID || "Not set");
     
+    // Check request size
+    const contentLength = req.headers['content-length'];
+    if (contentLength && parseInt(contentLength) > 50 * 1024 * 1024) { // 50MB limit
+      console.log("❌ Request too large:", contentLength, "bytes");
+      return res.status(413).json({ 
+        success: false, 
+        message: "Request payload too large. Please try with fewer tickets or contact support." 
+      });
+    }
+    
     const { tickets, date } = req.body;
     
     if (!tickets || !Array.isArray(tickets)) {
@@ -367,6 +383,15 @@ router.post("/export-to-sheets", adminAuthMiddleware, async (req, res) => {
     }
 
     console.log(`📋 Processing ${tickets.length} tickets...`);
+    
+    // Check if tickets array is too large
+    if (tickets.length > 10000) {
+      console.log("❌ Too many tickets:", tickets.length);
+      return res.status(413).json({ 
+        success: false, 
+        message: "Too many tickets to export at once. Please try with fewer tickets." 
+      });
+    }
 
     // Test auth setup
     console.log("🔐 Testing authentication...");
