@@ -287,13 +287,19 @@ router.post("/submit", ticketSubmissionRateLimit, upload.any(), async (req, res)
   let finalGalaDinner = req.body.galaDinner; // Declare outside try-catch for use later
   
   try {
-    const ticketType = req.body.ticketType;
+    let ticketType = req.body.ticketType;
     const subType = req.body.subType;
     
     // Add validation for ticketType
     if (!ticketType) {
       console.error("❌ Missing ticketType in request body:", req.body);
       return res.status(400).json({ message: "Missing ticket type in request." });
+    }
+    
+    // Handle case where ticketType is an array (take first value)
+    if (Array.isArray(ticketType)) {
+      console.log("⚠️ ticketType is an array, taking first value:", ticketType);
+      ticketType = ticketType[0];
     }
     
     console.log("🔍 Processing ticket type:", ticketType, "Type:", typeof ticketType);
