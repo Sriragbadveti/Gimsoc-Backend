@@ -278,9 +278,10 @@ router.post("/submit", ticketSubmissionRateLimit, upload.any(), async (req, res)
   console.log("📋 Request body keys:", Object.keys(req.body));
   console.log("📋 Email from request:", req.body.email);
   console.log("📋 Full name from request:", req.body.fullName);
-  console.log("📋 Ticket type from request:", req.body.ticketType);
+  console.log("📋 Ticket type from request:", req.body.ticketType, "Type:", typeof req.body.ticketType);
   console.log("📋 Sub type from request:", req.body.subType);
   console.log("📋 Gala dinner from request:", req.body.galaDinner, "Type:", typeof req.body.galaDinner);
+  console.log("📋 Full request body:", JSON.stringify(req.body, null, 2));
 
   // --- TICKET LIMIT CHECKS ---
   let finalGalaDinner = req.body.galaDinner; // Declare outside try-catch for use later
@@ -288,6 +289,15 @@ router.post("/submit", ticketSubmissionRateLimit, upload.any(), async (req, res)
   try {
     const ticketType = req.body.ticketType;
     const subType = req.body.subType;
+    
+    // Add validation for ticketType
+    if (!ticketType) {
+      console.error("❌ Missing ticketType in request body:", req.body);
+      return res.status(400).json({ message: "Missing ticket type in request." });
+    }
+    
+    console.log("🔍 Processing ticket type:", ticketType, "Type:", typeof ticketType);
+    
     let overallLimit = null;
     let overallQuery = {};
     
@@ -302,10 +312,10 @@ router.post("/submit", ticketSubmissionRateLimit, upload.any(), async (req, res)
       // Some forms may use Standard for Std+4
       overallLimit = 150;
       overallQuery = { $or: [ { ticketType: "Standard+4" }, { ticketType: "Standard" } ] };
-    } else if (ticketType && ticketType.startsWith("Doctor")) {
+    } else if (ticketType && typeof ticketType === 'string' && ticketType.startsWith("Doctor")) {
       overallLimit = 30;
       overallQuery = { ticketType: { $regex: /^Doctor/i } };
-    } else if (ticketType && ticketType.startsWith("International")) {
+    } else if (ticketType && typeof ticketType === 'string' && ticketType.startsWith("International")) {
       overallLimit = 50;
       overallQuery = { ticketType: { $regex: /^International/i } };
     }
@@ -367,7 +377,7 @@ router.post("/submit", ticketSubmissionRateLimit, upload.any(), async (req, res)
     const workshopPackage = req.body.workshopPackage;
     
     // Check if this is an all-inclusive doctor ticket (which automatically includes gala)
-    const isAllInclusiveDoctor = ticketType && ticketType.includes("Doctor") && 
+    const isAllInclusiveDoctor = ticketType && typeof ticketType === 'string' && ticketType.includes("Doctor") && 
                                 (workshopPackage === "All-Inclusive" || 
                                  (galaDinner && galaDinner.includes("Yes")));
     
@@ -574,7 +584,7 @@ router.post("/submit", ticketSubmissionRateLimit, upload.any(), async (req, res)
       subTypeValue = subType || "Standard"; // Default to Standard if not specified
     }
     // For Doctor tickets, map the ticketType to the correct category
-    else if (ticketType && ticketType.startsWith("Doctor")) {
+    else if (ticketType && typeof ticketType === 'string' && ticketType.startsWith("Doctor")) {
       ticketCategoryValue = "Doctor";
       subTypeValue = "Standard"; // Default for Doctor tickets
     }
@@ -594,7 +604,7 @@ router.post("/submit", ticketSubmissionRateLimit, upload.any(), async (req, res)
       subTypeValue = subType; // Use the subType as provided
     }
     // For International tickets, map the ticketType to the correct category
-    else if (ticketType && ticketType.startsWith("International")) {
+    else if (ticketType && typeof ticketType === 'string' && ticketType.startsWith("International")) {
       ticketCategoryValue = "International";
       subTypeValue = "Standard"; // Default for International tickets
     }
@@ -712,8 +722,8 @@ router.post("/submit", ticketSubmissionRateLimit, upload.any(), async (req, res)
       headshotUrl,
       paymentProofUrl,
       studentIdProofUrl,
-      // Store PayPal order ID for international tickets only
-      ...(ticketType && ticketType.startsWith("International") && req.body.paypalOrderId && {
+      // Store PayPal order ID for international tickets with PayPal payment
+      ...(ticketType && typeof ticketType === 'string' && ticketType.startsWith("International") && req.body.paymentMethod === "Credit/Debit Card" && req.body.paypalOrderId && {
         paypalOrderId: req.body.paypalOrderId
       })
     });
