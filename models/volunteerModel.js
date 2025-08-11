@@ -33,7 +33,7 @@ const mixed = mongoose.Schema.Types.Mixed;
 
 const volunteerApplicationSchema = new mongoose.Schema(
   {
-    email: { type: String, required: true, index: true },
+    email: { type: String, required: true, unique: true, index: true },
     isGimsocMember: { type: Boolean, default: false },
     gimsocMembershipId: { type: String },
 

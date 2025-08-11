@@ -56,6 +56,15 @@ router.post("/submit", requireUniqueChoices, async (req, res) => {
       }
     }
 
+    // Check if email already exists
+    const existingApplication = await VolunteerApplication.findOne({ email: data.email.toLowerCase() });
+    if (existingApplication) {
+      return res.status(409).json({ 
+        success: false, 
+        message: "An application with this email address already exists. Each email can only submit one volunteer application." 
+      });
+    }
+
     // Convert dates
     if (data.dateOfArrival) data.dateOfArrival = new Date(data.dateOfArrival);
     if (data.dateOfDeparture) data.dateOfDeparture = new Date(data.dateOfDeparture);
@@ -67,6 +76,15 @@ router.post("/submit", requireUniqueChoices, async (req, res) => {
     return res.status(201).json({ success: true, message: "Application submitted successfully." });
   } catch (error) {
     console.error("Volunteer application submit error:", error);
+    
+    // Check for duplicate key error (MongoDB unique constraint)
+    if (error.code === 11000 && error.keyPattern?.email) {
+      return res.status(409).json({ 
+        success: false, 
+        message: "An application with this email address already exists. Each email can only submit one volunteer application." 
+      });
+    }
+    
     return res.status(500).json({ success: false, message: error.message || "Internal server error" });
   }
 });
