@@ -166,6 +166,10 @@ app.use("/api/form", submissionRouter);
 const qrRouter = require("./routes/qrRouter.js");
 app.use("/api/qr", qrRouter);
 
+// Add volunteer router
+const volunteerRouter = require("./routes/volunteerRouter.js");
+app.use("/api/volunteer", volunteerRouter);
+
 // Error handling middleware for payload size errors
 app.use((err, req, res, next) => {
   if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {

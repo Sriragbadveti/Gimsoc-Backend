@@ -7,6 +7,7 @@ const { adminAuthMiddleware } = require("../middlewares/adminAuthMiddleware.js")
 const path = require("path");
 const fs = require("fs");
 const mongoose = require("mongoose"); // Added for system status
+const VolunteerApplication = require("../models/volunteerModel.js");
 
 const router = express.Router();
 
@@ -703,6 +704,44 @@ router.post("/clear-email-queue", adminAuthMiddleware, async (req, res) => {
   } catch (error) {
     console.error("❌ Error clearing email queue:", error);
     res.status(500).json({ error: "Failed to clear email queue" });
+  }
+});
+
+// ✅ NEW: GET ALL VOLUNTEER APPLICATIONS
+router.get("/getallvolunteers", adminAuthMiddleware, async (req, res) => {
+  try {
+    const volunteers = await VolunteerApplication.find()
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const processed = volunteers.map((v) => ({
+      _id: v._id,
+      fullName: v.fullName,
+      email: v.email,
+      whatsappNumber: v.whatsappNumber,
+      university: v.university,
+      isGimsocMember: v.isGimsocMember,
+      gimsocMembershipId: v.gimsocMembershipId || null,
+      dateOfArrival: v.dateOfArrival,
+      dateOfDeparture: v.dateOfDeparture,
+      firstChoice: v.firstChoice,
+      secondChoice: v.secondChoice,
+      thirdChoice: v.thirdChoice,
+      whatMakesYouUnique: v.whatMakesYouUnique,
+      handleConstructiveCriticism: v.handleConstructiveCriticism,
+      logisticsResponses: v.logisticsResponses || null,
+      prMarketingResponses: v.prMarketingResponses || null,
+      organizationResponses: v.organizationResponses || null,
+      workshopResponses: v.workshopResponses || null,
+      registrationResponses: v.registrationResponses || null,
+      itTechResponses: v.itTechResponses || null,
+      createdAt: v.createdAt,
+    }));
+
+    res.status(200).json(processed);
+  } catch (err) {
+    console.error("Error fetching volunteers:", err);
+    res.status(500).json({ message: "Failed to fetch volunteers" });
   }
 });
 
