@@ -27,6 +27,10 @@ const UniversityChoices = [
   "Ken Walker International University",
   "European University (EU)",
   "University of Georgia (UG)",
+  "Akaki Tsereteli State University (ATSU – Faculty of Medicine)",
+  "BAU International University, Batumi (BAU)",
+  "Batumi Shota Rustaveli State University (BSU – Faculty of Medicine)",
+  "Caucasus University (CU)",
 ];
 
 const mixed = mongoose.Schema.Types.Mixed;
