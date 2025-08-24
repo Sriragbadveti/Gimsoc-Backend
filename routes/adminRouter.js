@@ -648,45 +648,278 @@ router.get("/system-status", adminAuthMiddleware, async (req, res) => {
   try {
     const emailQueue = require("../utils/emailQueue");
     
-    // Get database connection status
-    const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
-    
-    // Get email queue status
-    const emailQueueStatus = emailQueue.getStatus();
-    
-    // Get memory usage
-    const memUsage = process.memoryUsage();
-    
-    // Get uptime
-    const uptime = process.uptime();
-    
-    res.json({
+    const status = {
       timestamp: new Date().toISOString(),
-      system: {
-        uptime: Math.floor(uptime),
-        memory: {
-          rss: Math.round(memUsage.rss / 1024 / 1024) + ' MB',
-          heapUsed: Math.round(memUsage.heapUsed / 1024 / 1024) + ' MB',
-          heapTotal: Math.round(memUsage.heapTotal / 1024 / 1024) + ' MB'
+      emailQueue: {
+        pending: await emailQueue.getQueueLength(),
+        processing: emailQueue.isProcessing()
+      }
+    };
+    
+    res.json(status);
+  } catch (error) {
+    console.error("Error getting system status:", error);
+    res.status(500).json({ error: "Failed to get system status" });
+  }
+});
+
+// Export volunteers to Google Sheets
+router.post("/export-volunteers-to-sheets", adminAuthMiddleware, async (req, res) => {
+  try {
+    console.log("📊 Starting volunteer Google Sheets export...");
+    console.log("🔍 Environment check:");
+    console.log("- GOOGLE_CREDENTIALS_BASE64:", process.env.GOOGLE_CREDENTIALS_BASE64 ? "Set" : "Not set");
+    console.log("- GOOGLE_SHEET_ID:", process.env.GOOGLE_SHEET_ID || "Not set");
+    
+    const { volunteers, date } = req.body;
+    
+    if (!volunteers || !Array.isArray(volunteers)) {
+      console.log("❌ Invalid volunteers data received");
+      return res.status(400).json({ 
+        success: false, 
+        message: "Invalid volunteers data" 
+      });
+    }
+
+    console.log(`📋 Processing ${volunteers.length} volunteers...`);
+    
+    // Check if volunteers array is too large
+    if (volunteers.length > 10000) {
+      console.log("❌ Too many volunteers:", volunteers.length);
+      return res.status(413).json({ 
+        success: false, 
+        message: "Too many volunteers to export at once. Please try with fewer volunteers." 
+      });
+    }
+
+    // Test auth setup
+    console.log("🔐 Testing authentication...");
+    let auth;
+    try {
+      if (process.env.GOOGLE_CREDENTIALS_BASE64) {
+        console.log("🔐 Using base64 credentials...");
+        const credentials = JSON.parse(Buffer.from(process.env.GOOGLE_CREDENTIALS_BASE64, 'base64').toString());
+        auth = new google.auth.GoogleAuth({
+          credentials,
+          scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+        });
+      } else {
+        console.log("🔐 Using key file...");
+        auth = new google.auth.GoogleAuth({
+          keyFile: process.env.GOOGLE_SERVICE_ACCOUNT_KEY_PATH || "./google-credentials.json",
+          scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+        });
+      }
+      console.log("✅ Authentication setup successful");
+    } catch (authError) {
+      console.error("❌ Authentication setup failed:", authError);
+      return res.status(500).json({ 
+        success: false, 
+        message: "Authentication setup failed: " + authError.message 
+      });
+    }
+
+    // Get Google Sheets API client
+    console.log("📊 Initializing Google Sheets client...");
+    const sheets = google.sheets({ version: "v4", auth });
+    
+    // Create or get the spreadsheet
+    const spreadsheetId = process.env.GOOGLE_SHEET_ID;
+    if (!spreadsheetId) {
+      console.log("❌ GOOGLE_SHEET_ID not configured");
+      return res.status(500).json({ 
+        success: false, 
+        message: "Google Sheet ID not configured" 
+      });
+    }
+
+    // Prepare data for export
+    const headers = [
+      "Volunteer ID",
+      "Full Name", 
+      "Email",
+      "WhatsApp Number",
+      "University",
+      "Is GIMSOC Member",
+      "GIMSOC Membership ID",
+      "Date of Arrival",
+      "Date of Departure",
+      "First Choice Team",
+      "Second Choice Team",
+      "Third Choice Team",
+      "What Makes You Unique",
+      "Handle Constructive Criticism",
+      "Logistics Responses",
+      "PR & Marketing Responses",
+      "Organization Responses",
+      "Workshop Responses",
+      "Registration Responses",
+      "IT & Tech Support Responses",
+      "Source",
+      "Created At",
+      "Updated At"
+    ];
+
+    const rows = volunteers.map(volunteer => [
+      volunteer._id || volunteer.id,
+      volunteer.fullName || "",
+      volunteer.email || "",
+      volunteer.whatsappNumber || "",
+      volunteer.university || "",
+      volunteer.isGimsocMember ? "Yes" : "No",
+      volunteer.gimsocMembershipId || "",
+      volunteer.dateOfArrival ? new Date(volunteer.dateOfArrival).toLocaleDateString() : "",
+      volunteer.dateOfDeparture ? new Date(volunteer.dateOfDeparture).toLocaleDateString() : "",
+      volunteer.firstChoice || "",
+      volunteer.secondChoice || "",
+      volunteer.thirdChoice || "",
+      volunteer.whatMakesYouUnique || "",
+      volunteer.handleConstructiveCriticism || "",
+      volunteer.logisticsResponses ? JSON.stringify(volunteer.logisticsResponses) : "",
+      volunteer.prMarketingResponses ? JSON.stringify(volunteer.prMarketingResponses) : "",
+      volunteer.organizationResponses ? JSON.stringify(volunteer.organizationResponses) : "",
+      volunteer.workshopResponses ? JSON.stringify(volunteer.workshopResponses) : "",
+      volunteer.registrationResponses ? JSON.stringify(volunteer.registrationResponses) : "",
+      volunteer.itTechResponses ? JSON.stringify(volunteer.itTechResponses) : "",
+      volunteer.source || "",
+      volunteer.createdAt ? new Date(volunteer.createdAt).toLocaleString() : "",
+      volunteer.updatedAt ? new Date(volunteer.updatedAt).toLocaleString() : ""
+    ]);
+
+    // Create sheet name with date
+    const rawDate = date || new Date().toISOString().split('T')[0];
+    const sheetName = `Volunteers_${rawDate.replace(/-/g, '_')}`;
+    console.log(`📊 Using sheet name: ${sheetName}`);
+    
+    try {
+      // First, check if the sheet exists
+      console.log("🔍 Checking if sheet exists...");
+      const spreadsheetInfo = await sheets.spreadsheets.get({
+        spreadsheetId
+      });
+      
+      const sheetExists = spreadsheetInfo.data.sheets.some(sheet => 
+        sheet.properties.title === sheetName
+      );
+      
+      if (!sheetExists) {
+        console.log("📄 Sheet doesn't exist, creating new sheet...");
+        // Create the sheet
+        await sheets.spreadsheets.batchUpdate({
+          spreadsheetId,
+          resource: {
+            requests: [
+              {
+                addSheet: {
+                  properties: {
+                    title: sheetName
+                  }
+                }
+              }
+            ]
+          }
+        });
+        console.log("✅ New sheet created successfully");
+      } else {
+        console.log("✅ Sheet already exists");
+      }
+      
+      // Clear existing data and add headers
+      console.log("🧹 Clearing existing data...");
+      await sheets.spreadsheets.values.clear({
+        spreadsheetId,
+        range: sheetName,
+      });
+      console.log("✅ Data cleared successfully");
+
+      // Add headers and data
+      console.log("📝 Writing data to sheet...");
+      await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `${sheetName}!A1`,
+        valueInputOption: "RAW",
+        resource: {
+          values: [headers, ...rows]
         }
-      },
-      database: {
-        status: dbStatus,
-        connectionPool: {
-          maxPoolSize: 50,
-          minPoolSize: 10
+      });
+      console.log("✅ Data written successfully");
+    } catch (sheetError) {
+      console.error("❌ Sheet operation failed:", sheetError);
+      console.error("❌ Error details:", {
+        message: sheetError.message,
+        code: sheetError.code,
+        status: sheetError.status,
+        response: sheetError.response?.data
+      });
+      return res.status(500).json({ 
+        success: false, 
+        message: "Sheet operation failed: " + sheetError.message,
+        details: {
+          code: sheetError.code,
+          status: sheetError.status,
+          response: sheetError.response?.data
         }
-      },
-      emailQueue: emailQueueStatus,
-      performance: {
-        nodeVersion: process.version,
-        platform: process.platform,
-        arch: process.arch
+      });
+    }
+
+    // Format headers (make them bold)
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      resource: {
+        requests: [
+          {
+            repeatCell: {
+              range: {
+                sheetId: await getSheetId(sheets, spreadsheetId, sheetName),
+                startRowIndex: 0,
+                endRowIndex: 1,
+                startColumnIndex: 0,
+                endColumnIndex: headers.length
+              },
+              cell: {
+                userEnteredFormat: {
+                  textFormat: {
+                    bold: true
+                  },
+                  backgroundColor: {
+                    red: 0.2,
+                    green: 0.6,
+                    blue: 0.9
+                  }
+                }
+              },
+              fields: "userEnteredFormat"
+            }
+          }
+        ]
       }
     });
+
+    const sheetUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit#gid=0`;
+    const specificSheetUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit#gid=0&range=${sheetName}!A1`;
+    
+    console.log(`✅ Successfully exported ${rows.length} volunteers to Google Sheets`);
+    console.log(`📊 Sheet URL: ${sheetUrl}`);
+    console.log(`📊 Sheet name: ${sheetName}`);
+    console.log(`📊 Data range: A1:${String.fromCharCode(65 + headers.length - 1)}${rows.length + 1}`);
+    
+    res.json({
+      success: true,
+      exportedCount: rows.length,
+      totalVolunteers: volunteers.length,
+      sheetUrl: sheetUrl,
+      specificSheetUrl: specificSheetUrl,
+      sheetName: sheetName,
+      dataRange: `A1:${String.fromCharCode(65 + headers.length - 1)}${rows.length + 1}`,
+      message: `Successfully exported ${rows.length} volunteers to Google Sheets in sheet '${sheetName}'`
+    });
+
   } catch (error) {
-    console.error("❌ Error getting system status:", error);
-    res.status(500).json({ error: "Failed to get system status" });
+    console.error("❌ Error exporting volunteers to Google Sheets:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to export volunteers to Google Sheets"
+    });
   }
 });
 
