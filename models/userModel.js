@@ -5,7 +5,7 @@ const userTicketSchema = new mongoose.Schema({
   ticketType: String, // Add ticketType field
   ticketCategory: {
     type: String,
-    enum: ["Standard", "All-Inclusive", "Doctor", "International", "Executive & Subcom"],
+    enum: ["Standard", "All-Inclusive", "Doctor", /* "International", */ "Executive & Subcom"],
     required: true,
   },
   subType: {
@@ -30,10 +30,10 @@ const userTicketSchema = new mongoose.Schema({
   countryOfPractice: String,
 
   // International
-  nationality: String,
-  countryOfResidence: String,
-  passportNumber: String,
-  needsVisaSupport: String,
+  // nationality: String,
+  // countryOfResidence: String,
+  // passportNumber: String,
+  // needsVisaSupport: String,
   emergencyContactName: String,
   emergencyContactRelationship: String,
   emergencyContactPhone: String,
@@ -64,7 +64,7 @@ const userTicketSchema = new mongoose.Schema({
   paymentMethod: String,
   discountConfirmation: Boolean,
   workshopPackage: String,
-  paypalOrderId: String, // Store PayPal order ID for international tickets
+  // paypalOrderId: String, // Store PayPal order ID for international tickets
   paymentStatus: {
     type: String,
     enum: ["pending", "completed", "rejected"],

@@ -133,10 +133,10 @@ router.get("/getalltickets", adminAuthMiddleware, async (req, res) => {
       specialty: ticket.specialty,
       currentWorkplace: ticket.currentWorkplace,
       countryOfPractice: ticket.countryOfPractice,
-      nationality: ticket.nationality,
-      countryOfResidence: ticket.countryOfResidence,
-      passportNumber: ticket.passportNumber,
-      needsVisaSupport: ticket.needsVisaSupport,
+      // nationality: ticket.nationality,
+      // countryOfResidence: ticket.countryOfResidence,
+      // passportNumber: ticket.passportNumber,
+      // needsVisaSupport: ticket.needsVisaSupport,
       emergencyContactName: ticket.emergencyContactName,
       emergencyContactRelationship: ticket.emergencyContactRelationship,
       emergencyContactPhone: ticket.emergencyContactPhone,
@@ -155,7 +155,7 @@ router.get("/getalltickets", adminAuthMiddleware, async (req, res) => {
       whatsappConsent: ticket.whatsappConsent,
       paymentMethod: ticket.paymentMethod,
       discountConfirmation: ticket.discountConfirmation,
-      paypalOrderId: ticket.paypalOrderId, // Add PayPal order ID for international tickets
+      // paypalOrderId: ticket.paypalOrderId, // Add PayPal order ID for international tickets
       attendees: ticket.attendees?.map(att => ({
         name: att.name,
         email: att.email,
@@ -200,10 +200,10 @@ router.get("/ticket-summary", adminAuthMiddleware, async (req, res) => {
         ticketType: { $regex: /^Doctor/i }, 
         paymentStatus: { $ne: "rejected" } 
       }),
-      international: await UserTicket.countDocuments({ 
-        ticketType: { $regex: /^International/i }, 
-        paymentStatus: { $ne: "rejected" } 
-      }),
+      // international: await UserTicket.countDocuments({ 
+      //   ticketType: { $regex: /^International/i }, 
+      //   paymentStatus: { $ne: "rejected" } 
+      // }),
       
       // Subtype breakdown (pending and completed count towards limits)
       executive: await UserTicket.countDocuments({ 

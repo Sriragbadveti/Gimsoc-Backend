@@ -309,7 +309,7 @@ router.post("/submit", ticketSubmissionRateLimit, upload.any(), async (req, res)
     
     // Overall ticket type limits
     if (ticketType === "Standard+2") {
-      overallLimit = 150;
+      overallLimit = 200;
       overallQuery = { ticketType: "Standard+2" };
     } else if (ticketType === "Standard+3") {
       overallLimit = 300;
@@ -321,9 +321,9 @@ router.post("/submit", ticketSubmissionRateLimit, upload.any(), async (req, res)
     } else if (ticketType && typeof ticketType === 'string' && ticketType.startsWith("Doctor")) {
       overallLimit = 30;
       overallQuery = { ticketType: { $regex: /^Doctor/i } };
-    } else if (ticketType && typeof ticketType === 'string' && ticketType.startsWith("International")) {
-      overallLimit = 50;
-      overallQuery = { ticketType: { $regex: /^International/i } };
+    // } else if (ticketType && typeof ticketType === 'string' && ticketType.startsWith("International")) {
+    //   overallLimit = 50;
+    //   overallQuery = { ticketType: { $regex: /^International/i } };
     }
     
     // Check overall ticket type limit
@@ -610,10 +610,10 @@ router.post("/submit", ticketSubmissionRateLimit, upload.any(), async (req, res)
       subTypeValue = subType; // Use the subType as provided
     }
     // For International tickets, map the ticketType to the correct category
-    else if (ticketType && typeof ticketType === 'string' && ticketType.startsWith("International")) {
-      ticketCategoryValue = "International";
-      subTypeValue = "Standard"; // Default for International tickets
-    }
+    // else if (ticketType && typeof ticketType === 'string' && ticketType.startsWith("International")) {
+    //   ticketCategoryValue = "International";
+    //   subTypeValue = "Standard"; // Default for International tickets
+    // }
     
     console.log("🔧 Processing ticket:", {
       originalTicketType: ticketType,
@@ -729,9 +729,9 @@ router.post("/submit", ticketSubmissionRateLimit, upload.any(), async (req, res)
       paymentProofUrl,
       studentIdProofUrl,
       // Store PayPal order ID for international tickets with PayPal payment
-      ...(ticketType && typeof ticketType === 'string' && ticketType.startsWith("International") && req.body.paymentMethod === "Credit/Debit Card" && req.body.paypalOrderId && {
-        paypalOrderId: req.body.paypalOrderId
-      })
+      // ...(ticketType && typeof ticketType === 'string' && ticketType.startsWith("International") && req.body.paymentMethod === "Credit/Debit Card" && req.body.paypalOrderId && {
+      //   paypalOrderId: req.body.paypalOrderId
+      // })
     });
 
     // 🧠 Handle group ticket attendees
