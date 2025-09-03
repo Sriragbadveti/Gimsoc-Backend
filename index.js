@@ -170,6 +170,10 @@ app.use("/api/qr", qrRouter);
 const volunteerRouter = require("./routes/volunteerRouter.js");
 app.use("/api/volunteer", volunteerRouter);
 
+// Add workshop router
+const workshopRouter = require("./routes/workshopRouter.js");
+app.use("/api/workshop", workshopRouter);
+
 // Error handling middleware for payload size errors
 app.use((err, req, res, next) => {
   if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
