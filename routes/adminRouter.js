@@ -993,4 +993,244 @@ async function getSheetId(sheets, spreadsheetId, sheetName) {
   }
 }
 
+// Export workshop registrations to Google Sheets
+router.post("/export-workshops-to-sheets", adminAuthMiddleware, async (req, res) => {
+  try {
+    console.log("📊 Starting workshop registrations Google Sheets export...");
+    console.log("🔍 Environment check:");
+    console.log("- GOOGLE_CREDENTIALS_BASE64:", process.env.GOOGLE_CREDENTIALS_BASE64 ? "Set" : "Not set");
+    console.log("- GOOGLE_SHEET_ID:", process.env.GOOGLE_SHEET_ID || "Not set");
+    
+    const { workshopRegistrations, date } = req.body;
+    
+    if (!workshopRegistrations || !Array.isArray(workshopRegistrations)) {
+      console.log("❌ Invalid workshop registrations data received");
+      return res.status(400).json({ 
+        success: false, 
+        message: "Invalid workshop registrations data" 
+      });
+    }
+
+    console.log(`📋 Processing ${workshopRegistrations.length} workshop registrations...`);
+    
+    // Check if registrations array is too large
+    if (workshopRegistrations.length > 10000) {
+      console.log("❌ Too many registrations:", workshopRegistrations.length);
+      return res.status(413).json({ 
+        success: false, 
+        message: "Too many registrations to export at once. Please try with fewer registrations." 
+      });
+    }
+
+    // Test auth setup
+    console.log("🔐 Testing authentication...");
+    let auth;
+    try {
+      if (process.env.GOOGLE_CREDENTIALS_BASE64) {
+        console.log("🔐 Using base64 credentials...");
+        const credentials = JSON.parse(Buffer.from(process.env.GOOGLE_CREDENTIALS_BASE64, 'base64').toString());
+        auth = new google.auth.GoogleAuth({
+          credentials,
+          scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+        });
+      } else {
+        console.log("🔐 Using key file...");
+        auth = new google.auth.GoogleAuth({
+          keyFile: process.env.GOOGLE_SERVICE_ACCOUNT_KEY_PATH || "./google-credentials.json",
+          scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+        });
+      }
+      console.log("✅ Authentication setup successful");
+    } catch (authError) {
+      console.error("❌ Authentication setup failed:", authError);
+      return res.status(500).json({ 
+        success: false, 
+        message: "Authentication setup failed: " + authError.message 
+      });
+    }
+
+    // Get Google Sheets API client
+    console.log("📊 Initializing Google Sheets client...");
+    const sheets = google.sheets({ version: "v4", auth });
+    
+    // Create or get the spreadsheet
+    const spreadsheetId = process.env.GOOGLE_SHEET_ID;
+    if (!spreadsheetId) {
+      console.log("❌ GOOGLE_SHEET_ID not configured");
+      return res.status(500).json({ 
+        success: false, 
+        message: "Google Sheet ID not configured" 
+      });
+    }
+
+    // Prepare data for export
+    const headers = [
+      "Registration ID",
+      "Workshop ID",
+      "Workshop Title",
+      "Full Name",
+      "Email",
+      "WhatsApp",
+      "University",
+      "Other University",
+      "Current Semester",
+      "Status",
+      "Registration Date",
+      "Created At",
+      "Updated At"
+    ];
+
+    const rows = workshopRegistrations.map(registration => [
+      registration._id || registration.id,
+      registration.workshopId || "",
+      registration.workshopTitle || "",
+      registration.fullName || "",
+      registration.email || "",
+      registration.whatsapp || "",
+      registration.university || "",
+      registration.otherUniversity || "",
+      registration.currentSemester || "",
+      registration.status || "",
+      registration.registrationDate ? new Date(registration.registrationDate).toLocaleDateString() : "",
+      registration.createdAt ? new Date(registration.createdAt).toLocaleString() : "",
+      registration.updatedAt ? new Date(registration.updatedAt).toLocaleString() : ""
+    ]);
+
+    // Create sheet name with date
+    const rawDate = date || new Date().toISOString().split('T')[0];
+    const sheetName = `Workshop_Registrations_${rawDate.replace(/-/g, '_')}`;
+    console.log(`📊 Using sheet name: ${sheetName}`);
+    
+    try {
+      // First, check if the sheet exists
+      console.log("🔍 Checking if sheet exists...");
+      const spreadsheetInfo = await sheets.spreadsheets.get({
+        spreadsheetId
+      });
+      
+      const sheetExists = spreadsheetInfo.data.sheets.some(sheet => 
+        sheet.properties.title === sheetName
+      );
+      
+      if (!sheetExists) {
+        console.log("📄 Sheet doesn't exist, creating new sheet...");
+        // Create the sheet
+        await sheets.spreadsheets.batchUpdate({
+          spreadsheetId,
+          resource: {
+            requests: [
+              {
+                addSheet: {
+                  properties: {
+                    title: sheetName
+                  }
+                }
+              }
+            ]
+          }
+        });
+        console.log("✅ New sheet created successfully");
+      } else {
+        console.log("✅ Sheet already exists");
+      }
+      
+      // Clear existing data and add headers
+      console.log("🧹 Clearing existing data...");
+      await sheets.spreadsheets.values.clear({
+        spreadsheetId,
+        range: sheetName,
+      });
+      console.log("✅ Data cleared successfully");
+
+      // Add headers and data
+      console.log("📝 Writing data to sheet...");
+      await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `${sheetName}!A1`,
+        valueInputOption: "RAW",
+        resource: {
+          values: [headers, ...rows]
+        }
+      });
+      console.log("✅ Data written successfully");
+    } catch (sheetError) {
+      console.error("❌ Sheet operation failed:", sheetError);
+      console.error("❌ Error details:", {
+        message: sheetError.message,
+        code: sheetError.code,
+        status: sheetError.status,
+        response: sheetError.response?.data
+      });
+      return res.status(500).json({ 
+        success: false, 
+        message: "Sheet operation failed: " + sheetError.message,
+        details: {
+          code: sheetError.code,
+          status: sheetError.status,
+          response: sheetError.response?.data
+        }
+      });
+    }
+
+    // Format headers (make them bold)
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId,
+      resource: {
+        requests: [
+          {
+            repeatCell: {
+              range: {
+                sheetId: await getSheetId(sheets, spreadsheetId, sheetName),
+                startRowIndex: 0,
+                endRowIndex: 1,
+                startColumnIndex: 0,
+                endColumnIndex: headers.length
+              },
+              cell: {
+                userEnteredFormat: {
+                  textFormat: {
+                    bold: true
+                  },
+                  backgroundColor: {
+                    red: 0.2,
+                    green: 0.6,
+                    blue: 0.9
+                  }
+                }
+              },
+              fields: "userEnteredFormat"
+            }
+          }
+        ]
+      }
+    });
+
+    const sheetUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit#gid=0`;
+    const specificSheetUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit#gid=0&range=${sheetName}!A1`;
+    
+    console.log(`✅ Successfully exported ${rows.length} workshop registrations to Google Sheets`);
+    console.log(`📊 Sheet URL: ${sheetUrl}`);
+    console.log(`📊 Sheet name: ${sheetName}`);
+    console.log(`📊 Data range: A1:${String.fromCharCode(65 + headers.length - 1)}${rows.length + 1}`);
+    
+    res.json({
+      success: true,
+      exportedCount: rows.length,
+      totalRegistrations: workshopRegistrations.length,
+      sheetUrl: sheetUrl,
+      specificSheetUrl: specificSheetUrl,
+      sheetName: sheetName,
+      dataRange: `A1:${String.fromCharCode(65 + headers.length - 1)}${rows.length + 1}`,
+      message: `Successfully exported ${rows.length} workshop registrations to Google Sheets in sheet '${sheetName}'`
+    });
+
+  } catch (error) {
+    console.error("❌ Error exporting workshop registrations to Google Sheets:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to export workshop registrations to Google Sheets"
+    });
+  }
+});
+
 module.exports = router;

@@ -139,3 +139,5 @@ workshopRegistrationSchema.virtual("workshopDetails").get(function() {
 });
 
 module.exports = mongoose.model("WorkshopRegistration", workshopRegistrationSchema);
+
+

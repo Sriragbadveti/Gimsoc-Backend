@@ -355,3 +355,5 @@ router.put("/registrations/:id/status", async (req, res) => {
 });
 
 module.exports = router;
+
+
