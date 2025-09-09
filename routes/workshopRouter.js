@@ -43,6 +43,14 @@ const upload = multer({
 // POST /api/workshop/register
 router.post("/register", upload.single("paymentProof"), async (req, res) => {
   try {
+    // Temporarily close registrations for BIOME workshop
+    if (req.body && req.body.workshopId === "biome") {
+      return res.status(403).json({
+        success: false,
+        message: "Registrations for this workshop are currently closed."
+      });
+    }
+
     const {
       workshopId,
       workshopTitle,
