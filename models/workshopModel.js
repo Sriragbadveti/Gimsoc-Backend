@@ -52,6 +52,10 @@ const workshopRegistrationSchema = new mongoose.Schema(
       default: "pending",
       enum: ["pending", "confirmed", "cancelled"]
     },
+    // Payment/Elligibility flags (for scientific-series logic)
+    paymentRequired: { type: Boolean, default: false },
+    feeWaived: { type: Boolean, default: false },
+    paymentStatus: { type: String, enum: ["pending", "verified", "n/a"], default: "pending" },
     
     // Additional Notes
     notes: { type: String },

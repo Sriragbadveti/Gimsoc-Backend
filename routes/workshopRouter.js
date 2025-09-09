@@ -3,6 +3,7 @@ const multer = require("multer");
 const path = require("path");
 const fs = require("fs");
 const WorkshopRegistration = require("../models/workshopModel.js");
+const UserTicket = require("../models/userModel.js");
 
 const router = express.Router();
 
@@ -141,6 +142,33 @@ router.post("/register", upload.single("paymentProof"), async (req, res) => {
       registrationData.paymentProof = paymentProofPath;
     }
 
+    // Scientific Series fee logic
+    if (workshopId === "scientific-series") {
+      const emailLower = email.toLowerCase().trim();
+      const hasValidTicket = await UserTicket.findOne({
+        email: emailLower,
+        paymentStatus: { $ne: "rejected" }
+      }).lean();
+
+      if (hasValidTicket) {
+        // Waive fee
+        registrationData.paymentRequired = false;
+        registrationData.feeWaived = true;
+        registrationData.paymentStatus = "n/a";
+      } else {
+        // Enforce payment like Standard+2 bank transfer (or PayPal if added later)
+        if (!selectedScientificSeries || !selectedScientificSeries.trim()) {
+          return res.status(400).json({ success: false, message: "Please select which scientific webinar you want to attend." });
+        }
+        if (!registrationData.paymentProof) {
+          return res.status(400).json({ success: false, message: "Payment proof (PDF) is required for non-ticket holders." });
+        }
+        registrationData.paymentRequired = true;
+        registrationData.feeWaived = false;
+        registrationData.paymentStatus = "pending";
+      }
+    }
+
     // Save registration
     const registration = new WorkshopRegistration(registrationData);
     await registration.save();
@@ -187,6 +215,24 @@ router.post("/register", upload.single("paymentProof"), async (req, res) => {
   }
 });
 
+// GET /api/workshop/eligibility?email=...
+router.get("/eligibility", async (req, res) => {
+  try {
+    const email = (req.query.email || "").toString().toLowerCase().trim();
+    if (!email) {
+      return res.status(400).json({ success: false, message: "Email is required" });
+    }
+    const hasValidTicket = await UserTicket.findOne({
+      email,
+      paymentStatus: { $ne: "rejected" }
+    }).lean();
+    return res.json({ success: true, eligible: !!hasValidTicket });
+  } catch (error) {
+    console.error("Eligibility check error:", error);
+    return res.status(500).json({ success: false, message: "Eligibility check failed" });
+  }
+});
+
 // GET /api/workshop/registrations (Admin only - will be protected by admin middleware)
 router.get("/registrations", async (req, res) => {
   try {
@@ -220,7 +266,9 @@ router.get("/registrations", async (req, res) => {
         $group: {
           _id: "$workshopId",
           count: { $sum: 1 },
-          workshopTitle: { $first: "$workshopTitle" }
+          workshopTitle: { $first: "$workshopTitle" },
+          paid: { $sum: { $cond: [{ $eq: ["$feeWaived", false] }, 1, 0] } },
+          waived: { $sum: { $cond: [{ $eq: ["$feeWaived", true] }, 1, 0] } }
         }
       },
       { $sort: { count: -1 } }
