@@ -285,9 +285,9 @@ router.post("/submit", ticketSubmissionRateLimit, upload.any(), async (req, res)
 
   // --- TICKET LIMIT CHECKS ---
   let finalGalaDinner = req.body.galaDinner; // Declare outside try-catch for use later
+  let ticketType = req.body.ticketType; // Declare outside try-catch for use in file validation
   
   try {
-    let ticketType = req.body.ticketType;
     const subType = req.body.subType;
     
     // Add validation for ticketType
