@@ -321,6 +321,12 @@ router.post("/submit", ticketSubmissionRateLimit, upload.any(), async (req, res)
     } else if (ticketType && typeof ticketType === 'string' && ticketType.startsWith("Doctor")) {
       overallLimit = 30;
       overallQuery = { ticketType: { $regex: /^Doctor/i } };
+    } else if (ticketType === "GIMSOC Member Online" || ticketType === "Non-GIMSOC Member Online") {
+      overallLimit = 500; // Higher limit for online tickets
+      overallQuery = { ticketType: { $in: ["GIMSOC Member Online", "Non-GIMSOC Member Online"] } };
+    } else if (ticketType === "GIMSOC Member Basic" || ticketType === "Non-GIMSOC Member Basic") {
+      overallLimit = 200; // Limit for basic tickets
+      overallQuery = { ticketType: { $in: ["GIMSOC Member Basic", "Non-GIMSOC Member Basic"] } };
     // } else if (ticketType && typeof ticketType === 'string' && ticketType.startsWith("International")) {
     //   overallLimit = 50;
     //   overallQuery = { ticketType: { $regex: /^International/i } };
@@ -609,6 +615,24 @@ router.post("/submit", ticketSubmissionRateLimit, upload.any(), async (req, res)
       ticketCategoryValue = "Standard";
       subTypeValue = subType; // Use the subType as provided
     }
+    // For new Online tickets
+    else if (ticketType === "GIMSOC Member Online") {
+      ticketCategoryValue = "Online";
+      subTypeValue = "GIMSOC";
+    }
+    else if (ticketType === "Non-GIMSOC Member Online") {
+      ticketCategoryValue = "Online";
+      subTypeValue = "Non-GIMSOC";
+    }
+    // For new Basic tickets
+    else if (ticketType === "GIMSOC Member Basic") {
+      ticketCategoryValue = "Basic";
+      subTypeValue = "GIMSOC";
+    }
+    else if (ticketType === "Non-GIMSOC Member Basic") {
+      ticketCategoryValue = "Basic";
+      subTypeValue = "Non-GIMSOC";
+    }
     // For International tickets, map the ticketType to the correct category
     // else if (ticketType && typeof ticketType === 'string' && ticketType.startsWith("International")) {
     //   ticketCategoryValue = "International";
@@ -728,6 +752,19 @@ router.post("/submit", ticketSubmissionRateLimit, upload.any(), async (req, res)
       headshotUrl,
       paymentProofUrl,
       studentIdProofUrl,
+      
+      // New fields for Online/Basic tickets
+      isStudent: ensureString(req.body.isStudent, "isStudent"),
+      fieldOfStudy: ensureString(req.body.fieldOfStudy, "fieldOfStudy"),
+      examPreparation: ensureString(req.body.examPreparation, "examPreparation"),
+      otherExam: ensureString(req.body.otherExam, "otherExam"),
+      country: ensureString(req.body.country, "country"),
+      timeZone: ensureString(req.body.timeZone, "timeZone"),
+      sourceOfInfo: ensureString(req.body.sourceOfInfo, "sourceOfInfo"),
+      otherSource: ensureString(req.body.otherSource, "otherSource"),
+      isDfcMember: ensureString(req.body.isDfcMember, "isDfcMember"),
+      declarationAccurate: toBool(req.body.declarationAccurate),
+      policyCompliance: toBool(req.body.policyCompliance),
       // Store PayPal order ID for international tickets with PayPal payment
       // ...(ticketType && typeof ticketType === 'string' && ticketType.startsWith("International") && req.body.paymentMethod === "Credit/Debit Card" && req.body.paypalOrderId && {
       //   paypalOrderId: req.body.paypalOrderId
