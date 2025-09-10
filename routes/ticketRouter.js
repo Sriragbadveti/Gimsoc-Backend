@@ -524,8 +524,14 @@ router.post("/submit", ticketSubmissionRateLimit, upload.any(), async (req, res)
     
     console.log("📁 Files uploaded:", filesMap);
 
-    // Validate that all required files were uploaded successfully
-    const requiredFiles = ['headshot', 'paymentProof'];
+    // Validate that all required files were uploaded successfully based on ticket type
+    let requiredFiles = ['paymentProof']; // All tickets require payment proof
+    
+    // Add headshot requirement only for non-Online tickets
+    if (req.body.ticketType !== 'Online') {
+      requiredFiles.push('headshot');
+    }
+    
     const missingFiles = [];
     
     for (const requiredFile of requiredFiles) {
