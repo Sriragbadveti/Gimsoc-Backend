@@ -525,7 +525,24 @@ router.post("/submit", ticketSubmissionRateLimit, upload.any(), async (req, res)
     console.log("📁 Files uploaded:", filesMap);
 
     // Validate that all required files were uploaded successfully
-    const requiredFiles = ['headshot', 'paymentProof'];
+    // File requirements vary by ticket type
+    let requiredFiles = [];
+    
+    if (ticketType === "GIMSOC Member Online" || ticketType === "Non-GIMSOC Member Online") {
+      // Online tickets only need payment proof (if bank transfer)
+      if (req.body.paymentMethod === "Bank Transfer") {
+        requiredFiles = ['paymentProof'];
+      } else {
+        requiredFiles = []; // No files required for credit card payments
+      }
+    } else if (ticketType === "GIMSOC Member Basic" || ticketType === "Non-GIMSOC Member Basic") {
+      // Basic tickets need both headshot and payment proof
+      requiredFiles = ['headshot', 'paymentProof'];
+    } else {
+      // All other ticket types need both files
+      requiredFiles = ['headshot', 'paymentProof'];
+    }
+    
     const missingFiles = [];
     
     for (const requiredFile of requiredFiles) {
