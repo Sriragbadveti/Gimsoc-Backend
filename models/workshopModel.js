@@ -110,7 +110,7 @@ workshopRegistrationSchema.virtual("workshopDetails").get(function() {
     "scientific-series": {
       title: "From Curiosity to Conference -- The Researcher's Toolkit",
       date: "Multiple dates (Sept 14, 21, 28)",
-      organization: "INSPECT-LB, MEDICA-RI, Scientific Department"
+      organization: "INSPECT-LB, Scientific Department"
     },
     "project-img": {
       title: "From Isolation to Solidarity: Social Impacts of Infectious Disease",
