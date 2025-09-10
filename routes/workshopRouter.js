@@ -30,13 +30,16 @@ const upload = multer({
   storage,
   limits: { fileSize: 5 * 1024 * 1024 }, // Max 5MB for payment proofs
   fileFilter: (req, file, cb) => {
-    // Only allow PDF files for payment proofs
-    if (file.fieldname === "paymentProof" && file.mimetype === "application/pdf") {
+    // Allow PDF, JPEG, and PNG files for payment proofs
+    if (file.fieldname === "paymentProof" && 
+        (file.mimetype === "application/pdf" || 
+         file.mimetype === "image/jpeg" || 
+         file.mimetype === "image/png")) {
       cb(null, true);
     } else if (file.fieldname !== "paymentProof") {
       cb(null, true); // Allow other fields
     } else {
-      cb(new Error("Only PDF files are allowed for payment proof"), false);
+      cb(new Error("Only PDF, JPEG, and PNG files are allowed for payment proof"), false);
     }
   },
 });
@@ -161,7 +164,7 @@ router.post("/register", upload.single("paymentProof"), async (req, res) => {
           return res.status(400).json({ success: false, message: "Please select which scientific webinar you want to attend." });
         }
         if (!registrationData.paymentProof) {
-          return res.status(400).json({ success: false, message: "Payment proof (PDF) is required for non-ticket holders." });
+          return res.status(400).json({ success: false, message: "Payment proof (PDF, JPEG, or PNG) is required for non-ticket holders." });
         }
         registrationData.paymentRequired = true;
         registrationData.feeWaived = false;
@@ -201,10 +204,10 @@ router.post("/register", upload.single("paymentProof"), async (req, res) => {
     }
     
     // Handle file upload errors
-    if (error.message && error.message.includes("Only PDF files")) {
+    if (error.message && error.message.includes("Only PDF, JPEG, and PNG files")) {
       return res.status(400).json({ 
         success: false, 
-        message: "Only PDF files are allowed for payment proof." 
+        message: "Only PDF, JPEG, and PNG files are allowed for payment proof." 
       });
     }
     
