@@ -200,22 +200,6 @@ router.get("/ticket-summary", adminAuthMiddleware, async (req, res) => {
         ticketType: { $regex: /^Doctor/i }, 
         paymentStatus: { $ne: "rejected" } 
       }),
-      gimsocMemberOnline: await UserTicket.countDocuments({ 
-        ticketType: "GIMSOC Member Online", 
-        paymentStatus: { $ne: "rejected" } 
-      }),
-      nonGimsocMemberOnline: await UserTicket.countDocuments({ 
-        ticketType: "Non-GIMSOC Member Online", 
-        paymentStatus: { $ne: "rejected" } 
-      }),
-      gimsocMemberBasic: await UserTicket.countDocuments({ 
-        ticketType: "GIMSOC Member Basic", 
-        paymentStatus: { $ne: "rejected" } 
-      }),
-      nonGimsocMemberBasic: await UserTicket.countDocuments({ 
-        ticketType: "Non-GIMSOC Member Basic", 
-        paymentStatus: { $ne: "rejected" } 
-      }),
       // international: await UserTicket.countDocuments({ 
       //   ticketType: { $regex: /^International/i }, 
       //   paymentStatus: { $ne: "rejected" } 

@@ -5,7 +5,7 @@ const userTicketSchema = new mongoose.Schema({
   ticketType: String, // Add ticketType field
   ticketCategory: {
     type: String,
-    enum: ["Standard", "All-Inclusive", "Doctor", /* "International", */ "Executive & Subcom", "Online", "Basic"],
+    enum: ["Standard", "All-Inclusive", "Doctor", "Online", "Basic", /* "International", */ "Executive & Subcom"],
     required: true,
   },
   subType: {
@@ -28,17 +28,6 @@ const userTicketSchema = new mongoose.Schema({
   specialty: String,
   currentWorkplace: String,
   countryOfPractice: String,
-  
-  // Online/Basic specific fields
-  isStudent: String,
-  fieldOfStudy: String,
-  examPreparation: String,
-  otherExam: String,
-  country: String,
-  timeZone: String,
-  sourceOfInfo: String,
-  otherSource: String,
-  isDfcMember: String,
 
   // International
   // nationality: String,
@@ -70,10 +59,6 @@ const userTicketSchema = new mongoose.Schema({
   policies: Boolean,
   emailConsent: Boolean,
   whatsappConsent: Boolean,
-  
-  // Additional consent fields for new ticket types
-  declarationAccurate: Boolean,
-  policyCompliance: Boolean,
 
   // Payment
   paymentMethod: String,
