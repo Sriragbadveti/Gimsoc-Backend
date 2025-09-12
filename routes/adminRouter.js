@@ -1261,32 +1261,30 @@ router.post("/export-abstracts-to-sheets", adminAuthMiddleware, async (req, res)
       });
     }
 
-    // Prepare Google Sheets authentication
-    console.log("📊 Setting up Google Sheets authentication...");
+    // Test auth setup
+    console.log("🔐 Testing authentication...");
     let auth;
-    
     try {
-      if (process.env.GOOGLE_SERVICE_ACCOUNT_KEY) {
-        // Use service account key (for production)
-        const serviceAccountKey = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
+      if (process.env.GOOGLE_CREDENTIALS_BASE64) {
+        console.log("🔐 Using base64 credentials...");
+        const credentials = JSON.parse(Buffer.from(process.env.GOOGLE_CREDENTIALS_BASE64, 'base64').toString());
         auth = new google.auth.GoogleAuth({
-          credentials: serviceAccountKey,
-          scopes: ["https://www.googleapis.com/auth/spreadsheets"],
-        });
-      } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-        // Use service account file (for local development)
-        auth = new google.auth.GoogleAuth({
-          keyFile: process.env.GOOGLE_APPLICATION_CREDENTIALS,
+          credentials,
           scopes: ["https://www.googleapis.com/auth/spreadsheets"],
         });
       } else {
-        throw new Error("No Google authentication method configured");
+        console.log("🔐 Using key file...");
+        auth = new google.auth.GoogleAuth({
+          keyFile: process.env.GOOGLE_SERVICE_ACCOUNT_KEY_PATH || "./google-credentials.json",
+          scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+        });
       }
+      console.log("✅ Authentication setup successful");
     } catch (authError) {
-      console.error("❌ Google Sheets authentication error:", authError);
-      return res.status(500).json({
-        success: false,
-        message: "Google Sheets authentication failed: " + authError.message
+      console.error("❌ Authentication setup failed:", authError);
+      return res.status(500).json({ 
+        success: false, 
+        message: "Authentication setup failed: " + authError.message 
       });
     }
 
