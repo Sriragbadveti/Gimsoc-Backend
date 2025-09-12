@@ -1233,4 +1233,173 @@ router.post("/export-workshops-to-sheets", adminAuthMiddleware, async (req, res)
   }
 });
 
+// Export abstracts to Google Sheets
+router.post("/export-abstracts-to-sheets", adminAuthMiddleware, async (req, res) => {
+  try {
+    console.log("📊 Starting abstracts Google Sheets export...");
+    
+    // Check environment variables
+    console.log("- GOOGLE_SHEET_ID:", process.env.GOOGLE_SHEET_ID || "Not set");
+    
+    if (!process.env.GOOGLE_SHEET_ID) {
+      console.log("❌ GOOGLE_SHEET_ID not configured");
+      return res.status(500).json({ 
+        success: false,
+        message: "Google Sheet ID not configured" 
+      });
+    }
+
+    // Get all abstracts
+    console.log("📊 Fetching abstracts from database...");
+    const abstracts = await Abstract.find({}).sort({ submittedAt: -1 });
+    console.log(`📊 Found ${abstracts.length} abstracts`);
+
+    if (abstracts.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No abstracts found to export"
+      });
+    }
+
+    // Prepare Google Sheets authentication
+    console.log("📊 Setting up Google Sheets authentication...");
+    let auth;
+    
+    try {
+      if (process.env.GOOGLE_SERVICE_ACCOUNT_KEY) {
+        // Use service account key (for production)
+        const serviceAccountKey = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
+        auth = new google.auth.GoogleAuth({
+          credentials: serviceAccountKey,
+          scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+        });
+      } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+        // Use service account file (for local development)
+        auth = new google.auth.GoogleAuth({
+          keyFile: process.env.GOOGLE_APPLICATION_CREDENTIALS,
+          scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+        });
+      } else {
+        throw new Error("No Google authentication method configured");
+      }
+    } catch (authError) {
+      console.error("❌ Google Sheets authentication error:", authError);
+      return res.status(500).json({
+        success: false,
+        message: "Google Sheets authentication failed: " + authError.message
+      });
+    }
+
+    // Get Google Sheets API client
+    console.log("📊 Initializing Google Sheets client...");
+    const sheets = google.sheets({ version: "v4", auth });
+
+    const spreadsheetId = process.env.GOOGLE_SHEET_ID;
+    if (!spreadsheetId) {
+      console.log("❌ GOOGLE_SHEET_ID not configured");
+      return res.status(500).json({ 
+        success: false,
+        message: "Google Sheet ID not configured" 
+      });
+    }
+
+    // Prepare data for export
+    console.log("📊 Preparing abstracts data for export...");
+    const sheetName = `Abstracts_${new Date().toISOString().split('T')[0]}`;
+    
+    // Define headers
+    const headers = [
+      "Full Name",
+      "Email", 
+      "WhatsApp",
+      "Title",
+      "Category",
+      "Authors",
+      "Presenting Author",
+      "Abstract File URL",
+      "Originality Consent",
+      "Disqualification Consent", 
+      "Permission Consent",
+      "Submitted At"
+    ];
+
+    // Prepare rows
+    const rows = abstracts.map(abstract => [
+      abstract.fullName || "",
+      abstract.email || "",
+      abstract.whatsapp || "",
+      abstract.title || "",
+      abstract.category || "",
+      abstract.authors || "",
+      abstract.presentingAuthor || "",
+      abstract.abstractFileURL || "",
+      abstract.originalityConsent ? "Yes" : "No",
+      abstract.disqualificationConsent ? "Yes" : "No", 
+      abstract.permissionConsent ? "Yes" : "No",
+      abstract.submittedAt ? new Date(abstract.submittedAt).toLocaleString() : ""
+    ]);
+
+    // Add headers as first row
+    const allRows = [headers, ...rows];
+
+    console.log(`📊 Preparing to write ${allRows.length} rows to Google Sheets...`);
+
+    // Write data to Google Sheets
+    const range = `${sheetName}!A1:${String.fromCharCode(65 + headers.length - 1)}${allRows.length}`;
+    
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: spreadsheetId,
+      range: range,
+      valueInputOption: "RAW",
+      resource: {
+        values: allRows
+      }
+    });
+
+    // Auto-resize columns
+    try {
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId: spreadsheetId,
+        resource: {
+          requests: [{
+            autoResizeDimensions: {
+              dimensions: {
+                sheetId: 0,
+                dimension: "COLUMNS",
+                startIndex: 0,
+                endIndex: headers.length
+              }
+            }
+          }]
+        }
+      });
+    } catch (resizeError) {
+      console.log("⚠️ Could not auto-resize columns:", resizeError.message);
+    }
+
+    const sheetUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit#gid=0`;
+    const specificSheetUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit#gid=0&range=${sheetName}!A1`;
+
+    console.log(`✅ Successfully exported ${rows.length} abstracts to Google Sheets`);
+
+    res.json({
+      success: true,
+      message: `Successfully exported ${rows.length} abstracts to Google Sheets in sheet '${sheetName}'`,
+      data: {
+        count: rows.length,
+        sheetUrl: sheetUrl,
+        specificSheetUrl: specificSheetUrl,
+        sheetName: sheetName
+      }
+    });
+
+  } catch (error) {
+    console.error("❌ Error exporting abstracts to Google Sheets:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to export abstracts to Google Sheets"
+    });
+  }
+});
+
 module.exports = router;
