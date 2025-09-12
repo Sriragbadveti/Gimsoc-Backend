@@ -1303,7 +1303,59 @@ router.post("/export-abstracts-to-sheets", adminAuthMiddleware, async (req, res)
 
     // Prepare data for export
     console.log("📊 Preparing abstracts data for export...");
-    const sheetName = `Abstracts_${new Date().toISOString().split('T')[0]}`;
+    // Create valid sheet name (replace hyphens with underscores)
+    const rawDate = new Date().toISOString().split('T')[0];
+    const sheetName = `Abstracts_${rawDate.replace(/-/g, '_')}`;
+    console.log(`📊 Using sheet name: ${sheetName}`);
+    
+    try {
+      // First, check if the sheet exists
+      console.log("🔍 Checking if sheet exists...");
+      const spreadsheetInfo = await sheets.spreadsheets.get({
+        spreadsheetId
+      });
+      
+      const sheetExists = spreadsheetInfo.data.sheets.some(sheet => 
+        sheet.properties.title === sheetName
+      );
+      
+      if (!sheetExists) {
+        console.log("📄 Sheet doesn't exist, creating new sheet...");
+        // Create the sheet
+        await sheets.spreadsheets.batchUpdate({
+          spreadsheetId,
+          resource: {
+            requests: [
+              {
+                addSheet: {
+                  properties: {
+                    title: sheetName
+                  }
+                }
+              }
+            ]
+          }
+        });
+        console.log("✅ New sheet created successfully");
+      } else {
+        console.log("✅ Sheet already exists");
+      }
+      
+      // Clear existing data and add headers
+      console.log("🧹 Clearing existing data...");
+      await sheets.spreadsheets.values.clear({
+        spreadsheetId,
+        range: sheetName,
+      });
+      console.log("✅ Data cleared successfully");
+
+    } catch (sheetError) {
+      console.error("❌ Error managing sheet:", sheetError);
+      return res.status(500).json({
+        success: false,
+        message: "Failed to manage sheet: " + sheetError.message
+      });
+    }
     
     // Define headers
     const headers = [
@@ -1343,16 +1395,16 @@ router.post("/export-abstracts-to-sheets", adminAuthMiddleware, async (req, res)
     console.log(`📊 Preparing to write ${allRows.length} rows to Google Sheets...`);
 
     // Write data to Google Sheets
-    const range = `${sheetName}!A1:${String.fromCharCode(65 + headers.length - 1)}${allRows.length}`;
-    
+    console.log("📝 Writing data to sheet...");
     await sheets.spreadsheets.values.update({
       spreadsheetId: spreadsheetId,
-      range: range,
+      range: `${sheetName}!A1`,
       valueInputOption: "RAW",
       resource: {
         values: allRows
       }
     });
+    console.log("✅ Data written successfully");
 
     // Auto-resize columns
     try {
