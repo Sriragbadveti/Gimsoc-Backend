@@ -1460,51 +1460,6 @@ router.post("/export-abstracts-to-sheets", adminAuthMiddleware, async (req, res)
   }
 });
 
-// Download workshop payment proof files
-router.get("/download-workshop-file/:filename", adminAuthMiddleware, async (req, res) => {
-  try {
-    const { filename } = req.params;
-    console.log("📁 Attempting to download workshop file:", filename);
-    
-    // Security: Only allow files from workshops directory
-    if (!filename.startsWith('workshop-')) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid file type"
-      });
-    }
-    
-    const filePath = path.join(__dirname, "..", "uploads", "workshops", filename);
-    console.log("📁 File path:", filePath);
-    
-    // Check if file exists
-    if (!fs.existsSync(filePath)) {
-      console.log("❌ File not found:", filePath);
-      return res.status(404).json({
-        success: false,
-        message: "File not found"
-      });
-    }
-    
-    // Set appropriate headers
-    res.setHeader('Content-Type', 'application/octet-stream');
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.setHeader('Access-Control-Allow-Origin', 'https://www.medcongimsoc.com');
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-    
-    // Send file
-    res.sendFile(filePath);
-    console.log("✅ File sent successfully:", filename);
-    
-  } catch (error) {
-    console.error("❌ Error downloading workshop file:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to download file"
-    });
-  }
-});
-
 // Migrate workshop payment status for existing registrations
 router.post("/migrate-workshop-payment-status", adminAuthMiddleware, async (req, res) => {
   try {
