@@ -1515,8 +1515,11 @@ router.post("/migrate-workshop-payment-status", adminAuthMiddleware, async (req,
       } else {
         // User doesn't have MEDCON ticket - should be paid access
         if (!registration.selectedScientificSeries || registration.selectedScientificSeries === 'Free Access - MEDCON Ticket Holder') {
-          // Set a default paid option if none exists
-          updateData.selectedScientificSeries = '7 GEL / 240 INR – Non-Member';
+          // Determine payment category based on GIMSOC membership if available
+          const paymentCategory = registration.isGimsocMember === 'Yes' 
+            ? '5 GEL / 175 INR – GIMSOC Member'
+            : '7 GEL / 240 INR – Non-Member';
+          updateData.selectedScientificSeries = paymentCategory;
           needsUpdate = true;
         }
         
