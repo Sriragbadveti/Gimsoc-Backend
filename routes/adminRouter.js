@@ -200,6 +200,14 @@ router.get("/ticket-summary", adminAuthMiddleware, async (req, res) => {
         ticketType: { $regex: /^Doctor/i }, 
         paymentStatus: { $ne: "rejected" } 
       }),
+      online: await UserTicket.countDocuments({ 
+        ticketType: "Online", 
+        paymentStatus: { $ne: "rejected" } 
+      }),
+      basic: await UserTicket.countDocuments({ 
+        ticketType: "Basic", 
+        paymentStatus: { $ne: "rejected" } 
+      }),
       // international: await UserTicket.countDocuments({ 
       //   ticketType: { $regex: /^International/i }, 
       //   paymentStatus: { $ne: "rejected" } 
@@ -1448,6 +1456,125 @@ router.post("/export-abstracts-to-sheets", adminAuthMiddleware, async (req, res)
     res.status(500).json({
       success: false,
       message: error.message || "Failed to export abstracts to Google Sheets"
+    });
+  }
+});
+
+// Migrate workshop payment status for existing registrations
+router.post("/migrate-workshop-payment-status", adminAuthMiddleware, async (req, res) => {
+  try {
+    console.log("🔄 Starting workshop payment status migration...");
+    
+    const WorkshopRegistration = require("../models/workshopModel.js");
+    const UserTicket = require("../models/userModel.js");
+
+    // Get all scientific-series workshop registrations
+    const scientificSeriesRegistrations = await WorkshopRegistration.find({
+      workshopId: 'scientific-series'
+    });
+
+    console.log(`📋 Found ${scientificSeriesRegistrations.length} scientific series registrations to process`);
+
+    let updatedCount = 0;
+    let freeAccessCount = 0;
+    let paidAccessCount = 0;
+
+    for (const registration of scientificSeriesRegistrations) {
+      let needsUpdate = false;
+      const updateData = {};
+
+      // Check if user has a valid MEDCON ticket
+      const hasValidTicket = await UserTicket.findOne({
+        email: registration.email.toLowerCase().trim(),
+        paymentStatus: { $ne: "rejected" }
+      }).lean();
+
+      if (hasValidTicket) {
+        // User has MEDCON ticket - should be free access
+        if (registration.selectedScientificSeries !== 'Free Access - MEDCON Ticket Holder') {
+          updateData.selectedScientificSeries = 'Free Access - MEDCON Ticket Holder';
+          needsUpdate = true;
+        }
+        
+        if (!registration.feeWaived) {
+          updateData.feeWaived = true;
+          needsUpdate = true;
+        }
+        
+        if (registration.paymentRequired !== false) {
+          updateData.paymentRequired = false;
+          needsUpdate = true;
+        }
+        
+        if (registration.paymentStatus !== 'n/a') {
+          updateData.paymentStatus = 'n/a';
+          needsUpdate = true;
+        }
+
+        freeAccessCount++;
+      } else {
+        // User doesn't have MEDCON ticket - should be paid access
+        if (!registration.selectedScientificSeries || registration.selectedScientificSeries === 'Free Access - MEDCON Ticket Holder') {
+          // Set a default paid option if none exists
+          updateData.selectedScientificSeries = '7 GEL / 240 INR – Non-Member';
+          needsUpdate = true;
+        }
+        
+        if (registration.feeWaived !== false) {
+          updateData.feeWaived = false;
+          needsUpdate = true;
+        }
+        
+        if (registration.paymentRequired !== true) {
+          updateData.paymentRequired = true;
+          needsUpdate = true;
+        }
+        
+        if (registration.paymentStatus !== 'pending') {
+          updateData.paymentStatus = 'pending';
+          needsUpdate = true;
+        }
+
+        paidAccessCount++;
+      }
+
+      // Update the registration if needed
+      if (needsUpdate) {
+        await WorkshopRegistration.findByIdAndUpdate(
+          registration._id,
+          updateData,
+          { new: true }
+        );
+        
+        updatedCount++;
+        console.log(`✅ Updated registration for ${registration.email}: ${hasValidTicket ? 'FREE (MEDCON)' : 'PAID'}`);
+      }
+    }
+
+    console.log('\n📊 Migration Summary:');
+    console.log(`   Total registrations processed: ${scientificSeriesRegistrations.length}`);
+    console.log(`   Records updated: ${updatedCount}`);
+    console.log(`   Free access (MEDCON holders): ${freeAccessCount}`);
+    console.log(`   Paid access (Non-MEDCON): ${paidAccessCount}`);
+    
+    console.log('\n✅ Workshop payment status migration completed successfully!');
+
+    res.json({
+      success: true,
+      message: "Workshop payment status migration completed successfully!",
+      data: {
+        totalProcessed: scientificSeriesRegistrations.length,
+        recordsUpdated: updatedCount,
+        freeAccessCount: freeAccessCount,
+        paidAccessCount: paidAccessCount
+      }
+    });
+
+  } catch (error) {
+    console.error("❌ Migration error:", error);
+    res.status(500).json({
+      success: false,
+      message: error.message || "Failed to migrate workshop payment status"
     });
   }
 });

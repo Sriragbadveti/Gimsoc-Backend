@@ -147,28 +147,39 @@ router.post("/register", upload.single("paymentProof"), async (req, res) => {
 
     // Scientific Series fee logic
     if (workshopId === "scientific-series") {
-      const emailLower = email.toLowerCase().trim();
-      const hasValidTicket = await UserTicket.findOne({
-        email: emailLower,
-        paymentStatus: { $ne: "rejected" }
-      }).lean();
-
-      if (hasValidTicket) {
-        // Waive fee
+      // Check if this is a free access registration (MEDCON ticket holder)
+      if (selectedScientificSeries === "Free Access - MEDCON Ticket Holder") {
+        // Waive fee for MEDCON ticket holders
         registrationData.paymentRequired = false;
         registrationData.feeWaived = true;
         registrationData.paymentStatus = "n/a";
       } else {
-        // Enforce payment like Standard+2 bank transfer (or PayPal if added later)
-        if (!selectedScientificSeries || !selectedScientificSeries.trim()) {
-          return res.status(400).json({ success: false, message: "Please select which scientific webinar you want to attend." });
+        // Check if user has a valid MEDCON ticket as backup verification
+        const emailLower = email.toLowerCase().trim();
+        const hasValidTicket = await UserTicket.findOne({
+          email: emailLower,
+          paymentStatus: { $ne: "rejected" }
+        }).lean();
+
+        if (hasValidTicket) {
+          // Waive fee for verified MEDCON ticket holders
+          registrationData.paymentRequired = false;
+          registrationData.feeWaived = true;
+          registrationData.paymentStatus = "n/a";
+          // Update selectedScientificSeries to reflect free access
+          registrationData.selectedScientificSeries = "Free Access - MEDCON Ticket Holder";
+        } else {
+          // Enforce payment for non-ticket holders
+          if (!selectedScientificSeries || !selectedScientificSeries.trim()) {
+            return res.status(400).json({ success: false, message: "Please select which scientific webinar you want to attend." });
+          }
+          if (!registrationData.paymentProof) {
+            return res.status(400).json({ success: false, message: "Payment proof (PDF, JPEG, or PNG) is required for non-ticket holders." });
+          }
+          registrationData.paymentRequired = true;
+          registrationData.feeWaived = false;
+          registrationData.paymentStatus = "pending";
         }
-        if (!registrationData.paymentProof) {
-          return res.status(400).json({ success: false, message: "Payment proof (PDF, JPEG, or PNG) is required for non-ticket holders." });
-        }
-        registrationData.paymentRequired = true;
-        registrationData.feeWaived = false;
-        registrationData.paymentStatus = "pending";
       }
     }
 
