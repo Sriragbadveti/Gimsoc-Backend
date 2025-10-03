@@ -37,7 +37,7 @@ const workshopRegistrationSchema = new mongoose.Schema(
     isMedconAttendee: { 
       type: String, 
       required: true,
-      enum: ["Yes", "No"]
+      enum: ["Yes", "No", "N/A"]
     },
     
     // Scientific Series Specific Fields

@@ -330,6 +330,11 @@ router.post("/submit", ticketSubmissionRateLimit, upload.any(), async (req, res)
     } else if (ticketType === "Basic") {
       overallLimit = 300;
       overallQuery = { ticketType: "Basic" };
+    } else if (ticketType === "Gala Add-On") {
+      // Optional: enforce a soft limit for Gala Add-On tickets if needed
+      // We'll rely on gala dinner limit below instead of a separate overall limit
+      overallLimit = null;
+      overallQuery = { ticketType: "Gala Add-On" };
     }
     
     // Check overall ticket type limit
@@ -399,6 +404,11 @@ router.post("/submit", ticketSubmissionRateLimit, upload.any(), async (req, res)
       console.log("🎭 Auto-including gala dinner for all-inclusive doctor ticket");
     }
     
+    // For Gala Add-On tickets, always set gala dinner to Yes
+    if (ticketType === "Gala Add-On") {
+      finalGalaDinner = "Yes, I would like to attend the Gala Dinner (+40 GEL)";
+    }
+
     if (finalGalaDinner && finalGalaDinner.includes("Yes")) {
       // Count all tickets with gala dinner selected (excluding rejected ones)
       const galaCount = await UserTicket.countDocuments({
@@ -527,8 +537,8 @@ router.post("/submit", ticketSubmissionRateLimit, upload.any(), async (req, res)
     // Validate that all required files were uploaded successfully based on ticket type
     let requiredFiles = ['paymentProof']; // All tickets require payment proof
     
-    // Add headshot requirement only for non-Online tickets
-    if (req.body.ticketType !== 'Online') {
+    // Add headshot requirement only for non-Online tickets, except Gala Add-On
+    if (req.body.ticketType !== 'Online' && req.body.ticketType !== 'Gala Add-On') {
       requiredFiles.push('headshot');
     }
     

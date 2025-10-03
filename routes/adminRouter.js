@@ -233,7 +233,14 @@ router.get("/ticket-summary", adminAuthMiddleware, async (req, res) => {
         galaDinner: { $regex: /Yes/i },
         paymentStatus: { $ne: "rejected" } 
       }),
-      galaLimit: 150
+      galaLimit: 150,
+      
+      // Gala Access ticket counts (separate from dinner tickets)
+      galaAccessTickets: await UserTicket.countDocuments({ 
+        ticketType: "Gala Add-On",
+        paymentStatus: { $ne: "rejected" } 
+      }),
+      galaAccessLimit: 100
     };
     
     // Silent response - no summary logging
@@ -325,7 +332,46 @@ router.patch("/approveticket/:ticketId", adminAuthMiddleware, async (req, res) =
   }
 });
 
-// ✅ NEW: GET ALL ABSTRACT SUBMISSIONS
+// DELETE TICKET endpoint
+router.delete("/deleteticket/:ticketId", adminAuthMiddleware, async (req, res) => {
+  const { ticketId } = req.params;
+
+  console.log("🗑️ Deleting ticket:", ticketId);
+
+  try {
+    const ticket = await UserTicket.findById(ticketId);
+
+    if (!ticket) {
+      console.log("❌ Ticket not found:", ticketId);
+      return res.status(404).json({ message: "Ticket not found" });
+    }
+
+    console.log("📊 Deleting ticket:", { 
+      fullName: ticket.fullName, 
+      email: ticket.email, 
+      ticketType: ticket.ticketType 
+    });
+
+    // Delete the ticket from database
+    await UserTicket.findByIdAndDelete(ticketId);
+
+    console.log("✅ Ticket deleted successfully:", ticketId);
+
+    return res.status(200).json({ 
+      message: "Ticket deleted successfully", 
+      deletedTicket: {
+        id: ticketId,
+        fullName: ticket.fullName,
+        ticketType: ticket.ticketType
+      }
+    });
+  } catch (error) {
+    console.error("❌ Error deleting ticket:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// ✅ NEW: GET ALL ABSTRACT SUBMITTIONS
 router.get("/getallabstracts", adminAuthMiddleware, async (req, res) => {
   try {
     const abstracts = await Abstract.find().sort({ createdAt: -1 }).lean();
