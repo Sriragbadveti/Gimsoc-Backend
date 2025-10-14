@@ -99,27 +99,31 @@ router.post("/select", async (req, res) => {
       }
     }
 
-    // General validation rules (applies to all ticket types)
+    // Ticket-specific validation rules
     const day1 = dayCount.get(1) || 0;
     const day2 = dayCount.get(2) || 0;
     const totalWorkshops = day1 + day2;
     
-    // 1. Max 3 workshops total
-    if (totalWorkshops > 3) {
-      await session.abortTransaction();
-      return res.status(400).json({ message: "You can select a maximum of 3 workshops total." });
-    }
-
-    // 2. Min 1 workshop per day (both days must have at least 1)
-    if (day1 < 1 || day2 < 1) {
-      await session.abortTransaction();
-      return res.status(400).json({ message: "Please select at least 1 workshop for each day." });
-    }
-
-    // 3. Max 2 workshops per day
-    if (day1 > 2 || day2 > 2) {
-      await session.abortTransaction();
-      return res.status(400).json({ message: "You can select a maximum of 2 workshops per day." });
+    if (ticketType === "Standard+2") {
+      // Standard+2 (TSU): Exactly 1 workshop per day (2 total)
+      if (day1 !== 1 || day2 !== 1) {
+        await session.abortTransaction();
+        return res.status(400).json({ message: "You must select exactly 1 workshop for each day (2 workshops total)." });
+      }
+    } else if (ticketType === "Standard+3" || ticketType === "Standard+4") {
+      // Standard+3 & Standard+4 (NVU): 1-2 workshops per day (3 total max)
+      if (totalWorkshops > 3) {
+        await session.abortTransaction();
+        return res.status(400).json({ message: "You can select a maximum of 3 workshops total." });
+      }
+      if (day1 < 1 || day2 < 1) {
+        await session.abortTransaction();
+        return res.status(400).json({ message: "Please select at least 1 workshop for each day." });
+      }
+      if (day1 > 2 || day2 > 2) {
+        await session.abortTransaction();
+        return res.status(400).json({ message: "You can select a maximum of 2 workshops per day." });
+      }
     }
 
     // Upsert selection (enforce one per attendee)
