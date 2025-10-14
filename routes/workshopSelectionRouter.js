@@ -4,6 +4,7 @@ const WorkshopSession = require("../models/workshopSessionModel.js");
 const WorkshopSelection = require("../models/workshopSelectionModel.js");
 const UserTicket = require("../models/userModel.js");
 const { adminAuthMiddleware } = require("../middlewares/adminAuthMiddleware.js");
+const { sendWorkshopConfirmationEmail } = require("../utils/emailService.js");
 
 // Utility: get venue by ticket
 function getVenueByTicket(ticketType) {
@@ -152,6 +153,33 @@ router.post("/select", async (req, res) => {
     );
 
     await session.commitTransaction();
+    
+    // Send confirmation email asynchronously (don't block the response)
+    setImmediate(async () => {
+      try {
+        const workshopsWithDetails = sessionsDocs.map(s => ({
+          code: s.code,
+          title: s.title,
+          day: s.day,
+          time: s.time,
+          venue: s.venue,
+          slot: s.slot
+        }));
+
+        await sendWorkshopConfirmationEmail(
+          { 
+            fullName: user.fullName || 'Attendee',
+            email: emailLower 
+          },
+          workshopsWithDetails
+        );
+        console.log('✅ Workshop confirmation email sent to:', emailLower);
+      } catch (emailError) {
+        console.error('❌ Error sending workshop confirmation email:', emailError);
+        // Don't fail the request if email fails
+      }
+    });
+
     return res.json({ message: "Selection saved", selection: selDoc });
   } catch (err) {
     console.error("POST /workshops/select error:", err);
@@ -235,6 +263,60 @@ router.post("/admin/seed", adminAuthMiddleware, async (req, res) => {
   } catch (err) {
     console.error("Seed workshops error:", err);
     return res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+// Admin: Delete a user's workshop selection
+router.delete("/admin/delete/:email", adminAuthMiddleware, async (req, res) => {
+  const session = await WorkshopSession.startSession();
+  session.startTransaction();
+  
+  try {
+    const email = req.params.email.toLowerCase().trim();
+    
+    if (!email) {
+      await session.abortTransaction();
+      return res.status(400).json({ message: "Email is required" });
+    }
+
+    // Find the selection
+    const selection = await WorkshopSelection.findOne({ email }).session(session);
+    
+    if (!selection) {
+      await session.abortTransaction();
+      return res.status(404).json({ message: "Workshop selection not found for this user" });
+    }
+
+    // Release reserved seats
+    if (selection.selections && selection.selections.length > 0) {
+      const workshops = await WorkshopSession.find({ 
+        code: { $in: selection.selections } 
+      }).session(session);
+      
+      for (const workshop of workshops) {
+        workshop.reserved = Math.max(0, workshop.reserved - 1);
+        await workshop.save({ session });
+      }
+    }
+
+    // Delete the selection
+    await WorkshopSelection.deleteOne({ email }).session(session);
+    
+    await session.commitTransaction();
+    
+    console.log(`✅ Admin deleted workshop selection for: ${email}`);
+    return res.json({ 
+      message: "Workshop selection deleted successfully",
+      email,
+      releasedSeats: selection.selections.length
+    });
+    
+  } catch (err) {
+    console.error("DELETE /workshops/admin/delete error:", err);
+    try { await session.abortTransaction(); } catch (_) {}
+    return res.status(500).json({ message: "Internal server error" });
+  } finally {
+    session.endSession();
   }
 });
 

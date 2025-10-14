@@ -687,8 +687,166 @@ const sendTicketRejectionEmail = async (userData) => {
   }
 };
 
+const sendWorkshopConfirmationEmail = async (userData, workshops) => {
+  try {
+    const { fullName, email } = userData;
+    
+    console.log('📧 Sending workshop confirmation email to:', email);
+    
+    if (!email) {
+      console.error('❌ No email provided');
+      return { success: false, error: 'No email provided' };
+    }
+    
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      console.error('❌ Invalid email format:', email);
+      return { success: false, error: 'Invalid email format' };
+    }
+    
+    // Group workshops by day
+    const day1Workshops = workshops.filter(w => w.day === 1);
+    const day2Workshops = workshops.filter(w => w.day === 2);
+    
+    // Create workshop list HTML
+    const createWorkshopList = (workshopList) => {
+      return workshopList.map(w => `
+        <div style="background-color: #f9fafb; padding: 16px; border-radius: 8px; margin-bottom: 12px; border-left: 4px solid #3b82f6;">
+          <div style="font-weight: 600; color: #1f2937; font-size: 16px; margin-bottom: 8px;">
+            ${w.title}
+          </div>
+          <div style="color: #6b7280; font-size: 14px;">
+            📅 Day ${w.day} • 🕐 ${w.time} • 📍 ${w.venue}
+          </div>
+        </div>
+      `).join('');
+    };
+    
+    const emailContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Workshop Registration Confirmation</title>
+      </head>
+      <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f3f4f6;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+          <!-- Header -->
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px 20px; text-align: center;">
+            <h1 style="color: #ffffff; margin: 0; font-size: 28px; font-weight: 700;">
+              🎉 Workshop Registration Confirmed!
+            </h1>
+          </div>
+
+          <!-- Content -->
+          <div style="padding: 40px 30px;">
+            <p style="color: #1f2937; font-size: 16px; line-height: 1.6; margin-bottom: 24px;">
+              Dear <strong>${fullName}</strong>,
+            </p>
+            
+            <p style="color: #4b5563; font-size: 15px; line-height: 1.6; margin-bottom: 24px;">
+              Congratulations! Your workshop selection has been successfully registered for <strong>MEDCON'25</strong>.
+            </p>
+
+            <div style="background-color: #ecfdf5; border: 1px solid #6ee7b7; border-radius: 8px; padding: 20px; margin-bottom: 30px;">
+              <p style="color: #065f46; margin: 0; font-size: 14px;">
+                ✅ Your workshops have been confirmed and reserved. Please make sure to attend all selected sessions.
+              </p>
+            </div>
+
+            <!-- Day 1 Workshops -->
+            ${day1Workshops.length > 0 ? `
+              <div style="margin-bottom: 32px;">
+                <h2 style="color: #1f2937; font-size: 20px; font-weight: 600; margin-bottom: 16px; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px;">
+                  📅 Day 1 Workshops
+                </h2>
+                ${createWorkshopList(day1Workshops)}
+              </div>
+            ` : ''}
+
+            <!-- Day 2 Workshops -->
+            ${day2Workshops.length > 0 ? `
+              <div style="margin-bottom: 32px;">
+                <h2 style="color: #1f2937; font-size: 20px; font-weight: 600; margin-bottom: 16px; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px;">
+                  📅 Day 2 Workshops
+                </h2>
+                ${createWorkshopList(day2Workshops)}
+              </div>
+            ` : ''}
+
+            <!-- Important Information -->
+            <div style="background-color: #fef3c7; border: 1px solid #fbbf24; border-radius: 8px; padding: 20px; margin-bottom: 30px;">
+              <h3 style="color: #92400e; margin: 0 0 12px 0; font-size: 16px; font-weight: 600;">
+                📋 Important Information
+              </h3>
+              <ul style="color: #78350f; margin: 0; padding-left: 20px; font-size: 14px; line-height: 1.8;">
+                <li>Please arrive 10 minutes early for each workshop</li>
+                <li>Bring your ticket/ID for verification</li>
+                <li>Workshop locations will be shared closer to the event</li>
+                <li>Your selections are final and cannot be changed</li>
+              </ul>
+            </div>
+
+            <!-- Contact Info -->
+            <div style="border-top: 2px solid #e5e7eb; padding-top: 24px; margin-top: 32px;">
+              <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin-bottom: 16px;">
+                If you have any questions or concerns, please contact us at:
+              </p>
+              <p style="color: #3b82f6; font-size: 14px; margin: 0;">
+                📧 support@medcongimsoc.com
+              </p>
+            </div>
+
+            <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin-top: 32px;">
+              We look forward to seeing you at MEDCON'25! 🎓
+            </p>
+
+            <p style="color: #6b7280; font-size: 14px; line-height: 1.6; margin-top: 24px; margin-bottom: 0;">
+              Best regards,<br>
+              <strong style="color: #1f2937;">The MEDCON'25 Team</strong>
+            </p>
+          </div>
+
+          <!-- Footer -->
+          <div style="background-color: #f9fafb; padding: 30px; text-align: center; border-top: 1px solid #e5e7eb;">
+            <p style="color: #9ca3af; font-size: 12px; margin: 0 0 8px 0;">
+              © 2025 MEDCON GIMSOC. All rights reserved.
+            </p>
+            <p style="color: #9ca3af; font-size: 12px; margin: 0;">
+              This is an automated email. Please do not reply to this message.
+            </p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+    
+    const { data, error } = await resend.emails.send({
+      from: 'MEDCON GIMSOC <noreply@medcongimsoc.com>',
+      to: [email],
+      subject: '🎉 Workshop Registration Confirmed - MEDCON\'25',
+      html: emailContent,
+    });
+    
+    if (error) {
+      console.error('❌ Resend API error:', error);
+      return { success: false, error };
+    }
+    
+    console.log('✅ Workshop confirmation email sent successfully:', data);
+    return { success: true, data };
+    
+  } catch (error) {
+    console.error('❌ Error sending workshop confirmation email:', error);
+    return { success: false, error };
+  }
+};
+
 module.exports = {
   sendTicketConfirmationEmail,
   sendTicketApprovalEmail,
-  sendTicketRejectionEmail
+  sendTicketRejectionEmail,
+  sendWorkshopConfirmationEmail
 }; 
