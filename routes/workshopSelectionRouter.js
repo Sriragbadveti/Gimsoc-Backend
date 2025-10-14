@@ -3,7 +3,7 @@ const router = express.Router();
 const WorkshopSession = require("../models/workshopSessionModel.js");
 const WorkshopSelection = require("../models/workshopSelectionModel.js");
 const UserTicket = require("../models/userModel.js");
-const adminAuthMiddleware = require("../middlewares/adminAuthMiddleware.js");
+const { adminAuthMiddleware } = require("../middlewares/adminAuthMiddleware.js");
 
 // Utility: get venue by ticket
 function getVenueByTicket(ticketType) {
