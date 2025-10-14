@@ -71,17 +71,18 @@ router.post("/select", async (req, res) => {
     // Validate per spec
     const byDaySlot = new Map();
     const linkedChosen = new Set();
-    let day1 = 0, day2 = 0;
+    const dayCount = new Map(); // Track workshops per day
 
     for (const s of sessionsDocs) {
       const key = `${s.day}-${s.slot}`;
       if (byDaySlot.has(key)) {
         await session.abortTransaction();
-        return res.status(400).json({ message: "You’ve already chosen a workshop in this time slot." });
+        return res.status(400).json({ message: "You've already chosen a workshop in this time slot." });
       }
       byDaySlot.set(key, true);
 
-      if (s.day === 1) day1++; else if (s.day === 2) day2++;
+      // Count workshops per day
+      dayCount.set(s.day, (dayCount.get(s.day) || 0) + 1);
 
       if (venue === "NVU" && s.linkedGroup) {
         if (linkedChosen.has(s.linkedGroup)) {
@@ -97,25 +98,27 @@ router.post("/select", async (req, res) => {
       }
     }
 
-    // Per-ticket rules
-    if (ticketType === "Standard+2") {
-      if (!(day1 === 1 && day2 === 1)) {
-        await session.abortTransaction();
-        return res.status(400).json({ message: "Please ensure you have selected 1 workshop on each day before submitting." });
-      }
-    } else if (ticketType === "Standard+3") {
-      if (!((day1 + day2) === 3 && day1 >= 1 && day2 >= 1)) {
-        await session.abortTransaction();
-        return res.status(400).json({ message: "Please ensure you’ve selected a minimum of one workshop per day." });
-      }
-    } else if (ticketType === "Standard+4") {
-      if (!(day1 === 2 && day2 === 2)) {
-        await session.abortTransaction();
-        return res.status(400).json({ message: "You must select two workshops per day." });
-      }
-    } else {
+    // General validation rules (applies to all ticket types)
+    const day1 = dayCount.get(1) || 0;
+    const day2 = dayCount.get(2) || 0;
+    const totalWorkshops = day1 + day2;
+    
+    // 1. Max 3 workshops total
+    if (totalWorkshops > 3) {
       await session.abortTransaction();
-      return res.status(400).json({ message: "Workshops only available for Standard+2/3/4" });
+      return res.status(400).json({ message: "You can select a maximum of 3 workshops total." });
+    }
+
+    // 2. Min 1 workshop per day (both days must have at least 1)
+    if (day1 < 1 || day2 < 1) {
+      await session.abortTransaction();
+      return res.status(400).json({ message: "Please select at least 1 workshop for each day." });
+    }
+
+    // 3. Max 2 workshops per day
+    if (day1 > 2 || day2 > 2) {
+      await session.abortTransaction();
+      return res.status(400).json({ message: "You can select a maximum of 2 workshops per day." });
     }
 
     // Upsert selection (enforce one per attendee)
