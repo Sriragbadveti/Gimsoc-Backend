@@ -786,7 +786,7 @@ const sendWorkshopConfirmationEmail = async (userData, workshops) => {
                 <li><strong>If you're late, entry won't be given</strong></li>
                 <li>You must register everyday at TSU for conference program in order to get entry to workshops</li>
                 <li>Bring your ticket/ID for verification</li>
-                <li>Workshop locations will be shared closer to the event</li>
+                
                 <li>Your selections are final and cannot be changed</li>
               </ul>
             </div>

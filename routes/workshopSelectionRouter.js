@@ -110,15 +110,25 @@ router.post("/select", async (req, res) => {
         await session.abortTransaction();
         return res.status(400).json({ message: "You must select exactly 1 workshop for each day (2 workshops total)." });
       }
-    } else if (ticketType === "Standard+3" || ticketType === "Standard+4") {
-      // Standard+3 & Standard+4 (NVU): 1-2 workshops per day (3 total max)
-      if (totalWorkshops > 3) {
+    } else if (ticketType === "Standard+3") {
+      // Standard+3 (NVU): 1-2 workshops per day (3 total)
+      if (totalWorkshops !== 3) {
         await session.abortTransaction();
-        return res.status(400).json({ message: "You can select a maximum of 3 workshops total." });
+        return res.status(400).json({ message: "You must select exactly 3 workshops total." });
       }
       if (day1 < 1 || day2 < 1) {
         await session.abortTransaction();
         return res.status(400).json({ message: "Please select at least 1 workshop for each day." });
+      }
+      if (day1 > 2 || day2 > 2) {
+        await session.abortTransaction();
+        return res.status(400).json({ message: "You can select a maximum of 2 workshops per day." });
+      }
+    } else if (ticketType === "Standard+4") {
+      // Standard+4 (NVU): Not more than 2 per day (4 total)
+      if (totalWorkshops !== 4) {
+        await session.abortTransaction();
+        return res.status(400).json({ message: "You must select exactly 4 workshops total." });
       }
       if (day1 > 2 || day2 > 2) {
         await session.abortTransaction();
