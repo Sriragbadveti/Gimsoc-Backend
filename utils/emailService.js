@@ -782,7 +782,9 @@ const sendWorkshopConfirmationEmail = async (userData, workshops) => {
                 📋 Important Information
               </h3>
               <ul style="color: #78350f; margin: 0; padding-left: 20px; font-size: 14px; line-height: 1.8;">
-                <li>Please arrive 10 minutes early for each workshop</li>
+                <li><strong>Please arrive 30 minutes early for each workshop</strong></li>
+                <li><strong>If you're late, entry won't be given</strong></li>
+                <li>You must register everyday at TSU for conference program in order to get entry to workshops</li>
                 <li>Bring your ticket/ID for verification</li>
                 <li>Workshop locations will be shared closer to the event</li>
                 <li>Your selections are final and cannot be changed</li>
