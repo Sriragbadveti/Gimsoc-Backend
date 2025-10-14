@@ -174,6 +174,10 @@ app.use("/api/volunteer", volunteerRouter);
 const workshopRouter = require("./routes/workshopRouter.js");
 app.use("/api/workshop", workshopRouter);
 
+// Workshop selection (TSU/NVU) routes
+const workshopSelectionRouter = require("./routes/workshopSelectionRouter.js");
+app.use("/api/workshops", workshopSelectionRouter);
+
 // Error handling middleware for payload size errors
 app.use((err, req, res, next) => {
   if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
