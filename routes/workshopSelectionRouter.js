@@ -3,6 +3,7 @@ const router = express.Router();
 const WorkshopSession = require("../models/workshopSessionModel.js");
 const WorkshopSelection = require("../models/workshopSelectionModel.js");
 const UserTicket = require("../models/userModel.js");
+const adminAuthMiddleware = require("../middlewares/adminAuthMiddleware.js");
 
 // Utility: get venue by ticket
 function getVenueByTicket(ticketType) {
@@ -159,5 +160,37 @@ router.post("/select", async (req, res) => {
 });
 
 module.exports = router;
+
+// Admin: list selections with user and session details
+router.get("/admin/list", adminAuthMiddleware, async (req, res) => {
+  try {
+    const selections = await WorkshopSelection.find({}).lean();
+    const emails = selections.map(s => s.email);
+    const users = await UserTicket.find({ email: { $in: emails } }).select("email fullName ticketType ticketCategory").lean();
+    const emailToUser = new Map(users.map(u => [u.email.toLowerCase(), u]));
+
+    // Fetch all session docs referenced
+    const allCodes = Array.from(new Set(selections.flatMap(s => s.selections || [])));
+    const sessions = await WorkshopSession.find({ code: { $in: allCodes } }).lean();
+    const codeToSession = new Map(sessions.map(s => [s.code, s]));
+
+    const data = selections.map(sel => ({
+      email: sel.email,
+      ticketType: sel.ticketType,
+      venue: sel.venue,
+      day1Count: sel.day1Count,
+      day2Count: sel.day2Count,
+      selections: (sel.selections || []).map(code => codeToSession.get(code) || { code }),
+      user: emailToUser.get(sel.email.toLowerCase()) || null,
+      createdAt: sel.createdAt,
+      updatedAt: sel.updatedAt,
+    }));
+
+    return res.json({ count: data.length, data });
+  } catch (err) {
+    console.error("GET /workshops/admin/list error:", err);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+});
 
 
