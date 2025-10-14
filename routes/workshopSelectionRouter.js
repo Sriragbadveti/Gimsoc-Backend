@@ -162,8 +162,6 @@ router.post("/select", async (req, res) => {
   }
 });
 
-module.exports = router;
-
 // Admin: list selections with user and session details
 router.get("/admin/list", adminAuthMiddleware, async (req, res) => {
   try {
@@ -196,4 +194,5 @@ router.get("/admin/list", adminAuthMiddleware, async (req, res) => {
   }
 });
 
+module.exports = router;
 
