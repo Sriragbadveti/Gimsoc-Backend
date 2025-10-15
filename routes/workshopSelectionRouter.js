@@ -9,7 +9,7 @@ const { sendWorkshopConfirmationEmail } = require("../utils/emailService.js");
 // Utility: get venue by ticket
 function getVenueByTicket(ticketType) {
   if (ticketType === "Standard+2") return "TSU";
-  if (ticketType === "Standard+3" || ticketType === "Standard+4") return "NVU";
+  if (ticketType === "Standard+3" || ticketType === "Standard+4" || ticketType === "Standard") return "NVU";
   return null;
 }
 
@@ -124,8 +124,8 @@ router.post("/select", async (req, res) => {
         await session.abortTransaction();
         return res.status(400).json({ message: "You can select a maximum of 2 workshops per day." });
       }
-    } else if (ticketType === "Standard+4") {
-      // Standard+4 (NVU): Not more than 2 per day (4 total)
+    } else if (ticketType === "Standard+4" || ticketType === "Standard") {
+      // Standard+4 and Standard (NVU): Not more than 2 per day (4 total)
       if (totalWorkshops !== 4) {
         await session.abortTransaction();
         return res.status(400).json({ message: "You must select exactly 4 workshops total." });
