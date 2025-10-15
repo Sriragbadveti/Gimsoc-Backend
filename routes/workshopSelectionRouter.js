@@ -13,23 +13,113 @@ function getVenueByTicket(ticketType) {
   return null;
 }
 
+// Diagnostic endpoint to check workshop access for a user
+router.get("/debug/:email", async (req, res) => {
+  try {
+    const email = req.params.email.toLowerCase().trim();
+    
+    console.log(`🔍 Workshop access debug for: ${email}`);
+    
+    // Find user with case-insensitive search
+    const user = await UserTicket.findOne({ 
+      email: { $regex: new RegExp(`^${email}$`, 'i') } 
+    }).lean();
+    
+    if (!user) {
+      return res.json({ 
+        success: false,
+        issue: "user_not_found",
+        message: "User not found in database",
+        email: email
+      });
+    }
+    
+    const venue = getVenueByTicket(user.ticketType);
+    const sessionCount = await WorkshopSession.countDocuments({ venue: venue || "NONE" });
+    
+    const diagnosis = {
+      success: true,
+      user: {
+        email: user.email,
+        ticketType: user.ticketType,
+        paymentStatus: user.paymentStatus
+      },
+      access: {
+        venue: venue,
+        canAccess: !!(user.paymentStatus === "completed" && venue),
+        sessionCount: sessionCount
+      },
+      issues: []
+    };
+    
+    // Check for issues
+    if (user.paymentStatus !== "completed") {
+      diagnosis.issues.push(`Payment status is "${user.paymentStatus}" (needs "completed")`);
+    }
+    
+    if (!venue) {
+      diagnosis.issues.push(`Ticket type "${user.ticketType}" doesn't map to any venue`);
+    }
+    
+    if (venue && sessionCount === 0) {
+      diagnosis.issues.push(`No workshop sessions found for venue "${venue}"`);
+    }
+    
+    console.log(`🔍 Debug result for ${email}:`, diagnosis);
+    return res.json(diagnosis);
+    
+  } catch (err) {
+    console.error("Workshop debug error:", err);
+    return res.status(500).json({ 
+      success: false, 
+      issue: "server_error",
+      message: "Internal server error" 
+    });
+  }
+});
+
 // GET sessions for a user (by email)
 router.get("/sessions", async (req, res) => {
   try {
     const email = (req.query.email || "").toLowerCase().trim();
     if (!email) return res.status(400).json({ message: "email is required" });
 
-    const user = await UserTicket.findOne({ email }).lean();
+    const user = await UserTicket.findOne({ 
+      email: { $regex: new RegExp(`^${email}$`, 'i') } 
+    }).lean();
     if (!user) return res.status(404).json({ message: "User not found" });
     if (!user.paymentStatus || user.paymentStatus !== "completed") {
-      return res.status(403).json({ message: "Ticket not approved" });
+      return res.status(403).json({ 
+        message: "Ticket not approved", 
+        details: `Payment status: ${user.paymentStatus || 'undefined'}` 
+      });
     }
 
     const venue = getVenueByTicket(user.ticketType);
-    if (!venue) return res.status(400).json({ message: "Workshops not available for this ticket" });
+    if (!venue) {
+      console.error(`❌ Workshop access denied - ticketType: "${user.ticketType}" for email: ${email}`);
+      return res.status(400).json({ 
+        message: "Workshops not available for this ticket",
+        details: `Ticket type: ${user.ticketType}` 
+      });
+    }
 
     const sessions = await WorkshopSession.find({ venue }).sort({ day: 1, slot: 1, code: 1 }).lean();
-    const selection = await WorkshopSelection.findOne({ email }).lean();
+    
+    // Check if workshop sessions exist
+    if (sessions.length === 0) {
+      console.error(`❌ No workshop sessions found for venue: ${venue}`);
+      return res.status(503).json({ 
+        message: "Workshop sessions not available", 
+        details: `No sessions found for venue: ${venue}` 
+      });
+    }
+    
+    const selection = await WorkshopSelection.findOne({ 
+      email: { $regex: new RegExp(`^${email}$`, 'i') } 
+    }).lean();
+    
+    console.log(`✅ Workshop access granted - ${sessions.length} sessions for ${user.ticketType} ticket (${email})`);
     return res.json({ sessions, selection, user: { ticketType: user.ticketType, email: user.email } });
   } catch (err) {
     console.error("GET /workshops/sessions error:", err);
@@ -58,8 +148,12 @@ router.post("/select", async (req, res) => {
     const ticketType = user.ticketType;
     const venue = getVenueByTicket(ticketType);
     if (!venue) {
+      console.error(`❌ Workshop selection denied - ticketType: "${ticketType}" for email: ${emailLower}`);
       await session.abortTransaction();
-      return res.status(400).json({ message: "Workshops not available for this ticket" });
+      return res.status(400).json({ 
+        message: "Workshops not available for this ticket",
+        details: `Ticket type: ${ticketType}` 
+      });
     }
 
     // Load sessions map
