@@ -3,6 +3,7 @@ const { google } = require("googleapis");
 const Abstract  = require("../models/abstractModel.js");
 const UserTicket = require("../models/userModel.js"); 
 const WorkshopSelection = require("../models/workshopSelectionModel.js");
+const WorkshopSession = require("../models/workshopSessionModel.js");
 const { sendTicketApprovalEmail, sendTicketRejectionEmail } = require("../utils/emailService.js");
 const { adminAuthMiddleware } = require("../middlewares/adminAuthMiddleware.js");
 const path = require("path");
@@ -1300,10 +1301,19 @@ router.post("/export-workshop-selections-to-sheets", adminAuthMiddleware, async 
     
     console.log("📊 Fetching workshop selections from database...");
     const workshopSelections = await WorkshopSelection.find({})
-      .populate('user', 'fullName email')
       .sort({ updatedAt: -1 });
     
     console.log(`📊 Found ${workshopSelections.length} workshop selections for export`);
+
+    // Get user data for the selections
+    const emails = workshopSelections.map(s => s.email);
+    const users = await UserTicket.find({ email: { $in: emails } }).select("email fullName ticketType ticketCategory").lean();
+    const emailToUser = new Map(users.map(u => [u.email.toLowerCase(), u]));
+
+    // Fetch all session docs referenced
+    const allCodes = Array.from(new Set(workshopSelections.flatMap(s => s.selections || [])));
+    const sessions = await WorkshopSession.find({ code: { $in: allCodes } }).lean();
+    const codeToSession = new Map(sessions.map(s => [s.code, s]));
 
     // Test auth setup
     console.log("🔐 Testing authentication...");
@@ -1399,13 +1409,15 @@ router.post("/export-workshop-selections-to-sheets", adminAuthMiddleware, async 
 
     // Prepare data rows
     const rows = workshopSelections.map((selection) => {
-      const workshopDetails = (selection.selections || []).map(workshop => 
-        `${workshop.code} - ${workshop.title} (Day ${workshop.day}, Slot ${workshop.slot}, ${workshop.time})`
-      ).join(' | ');
+      const user = emailToUser.get(selection.email.toLowerCase()) || null;
+      const workshopDetails = (selection.selections || []).map(code => {
+        const session = codeToSession.get(code);
+        return session ? `${session.code} - ${session.title} (Day ${session.day}, Slot ${session.slot}, ${session.time})` : code;
+      }).join(' | ');
       
       return [
         selection.email || '',
-        selection.user?.fullName || '',
+        user?.fullName || '',
         selection.ticketType || '',
         selection.venue || '',
         selection.day1Count || 0,
