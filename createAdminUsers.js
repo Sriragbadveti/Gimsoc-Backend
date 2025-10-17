@@ -49,7 +49,7 @@ const adminUsers = [
 async function createAdminUsers() {
   try {
     console.log("🔧 Creating admin users...");
-    console.log("📧 Authorized emails:");
+    console.log("📧 Authorized emailss:");
     adminUsers.forEach(admin => {
       console.log(`- ${admin.email} (${admin.role})`);
     });
