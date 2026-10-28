@@ -9,6 +9,8 @@ const { RateLimiterMemory } = require("rate-limiter-flexible");
 const UserTicket = require("../models/userModel");
 const { sendTicketConfirmationEmail } = require("../utils/emailService");
 const emailQueue = require("../utils/emailQueue");
+const { checkTicketLimits, acquireSaleLocks, saleLockKeys, GALA_LIMIT } = require("../utils/ticketLimits");
+const { withKeys } = require("../utils/keyedMutex");
 
 const router = express.Router();
 
@@ -131,7 +133,6 @@ router.get("/test", (req, res) => {
 router.post("/test-submission", (req, res) => {
   console.log("🧪 Test submission endpoint called");
   console.log("📋 Request body:", req.body);
-  console.log("📋 Request headers:", req.headers);
   
   res.json({ 
     message: "Test submission received", 
@@ -183,20 +184,22 @@ router.post("/test-email", async (req, res) => {
 });
 
 // Get gala dinner availability
+// Polled by every open booking page; a 5-second cache keeps it off the database.
+// (The real sold-out check still happens inside the purchase transaction.)
+let galaCache = { at: 0, count: 0 };
 router.get("/gala-availability", async (req, res) => {
   try {
-    // Count all tickets with gala dinner selected (excluding rejected ones)
-    const galaCount = await UserTicket.countDocuments({
-      galaDinner: { $regex: /Yes/i },
-      paymentStatus: { $ne: "rejected" }
-    });
-    
-    const galaLimit = 150;
-    const available = galaLimit - galaCount;
-    
+    if (Date.now() - galaCache.at > 5000) {
+      const count = await UserTicket.countDocuments({
+        galaDinner: { $regex: /Yes/i },
+        paymentStatus: { $ne: "rejected" }
+      });
+      galaCache = { at: Date.now(), count };
+    }
+    const available = GALA_LIMIT - galaCache.count;
     res.json({
-      totalLimit: galaLimit,
-      currentCount: galaCount,
+      totalLimit: GALA_LIMIT,
+      currentCount: galaCache.count,
       available: available,
       isAvailable: available > 0
     });
@@ -259,7 +262,6 @@ router.get("/ticket/:ticketId", async (req, res) => {
 router.post("/submit", ticketSubmissionRateLimit, upload.any(), async (req, res) => {
   console.log("🚀 Ticket submission started at:", new Date().toISOString());
   console.log("📋 Request IP:", req.ip);
-  console.log("📋 Request headers:", req.headers);
   console.log("📋 Request body keys:", Object.keys(req.body));
   console.log("📋 Files received:", req.files ? req.files.length : 0);
   
@@ -281,191 +283,43 @@ router.post("/submit", ticketSubmissionRateLimit, upload.any(), async (req, res)
   console.log("📋 Ticket type from request:", req.body.ticketType, "Type:", typeof req.body.ticketType);
   console.log("📋 Sub type from request:", req.body.subType);
   console.log("📋 Gala dinner from request:", req.body.galaDinner, "Type:", typeof req.body.galaDinner);
-  console.log("📋 Full request body:", JSON.stringify(req.body, null, 2));
 
-  // --- TICKET LIMIT CHECKS ---
+  // --- TICKET LIMIT + EMAIL CHECKS (fast fail before uploading files) ---
+  // The authoritative re-check runs inside a transaction right before the ticket is saved.
   let finalGalaDinner = req.body.galaDinner; // Declare outside try-catch for use later
-  
+  let limitArgs;
   try {
     let ticketType = req.body.ticketType;
-    const subType = req.body.subType;
-    
-    // Add validation for ticketType
     if (!ticketType) {
-      console.error("❌ Missing ticketType in request body:", req.body);
       return res.status(400).json({ message: "Missing ticket type in request." });
     }
-    
-    // Handle case where ticketType is an array (take first value)
-    if (Array.isArray(ticketType)) {
-      console.log("⚠️ ticketType is an array, taking first value:", ticketType);
-      ticketType = ticketType[0];
-    }
-    
-    console.log("🔍 Processing ticket type:", ticketType, "Type:", typeof ticketType);
-    
-    let overallLimit = null;
-    let overallQuery = {};
-    
-    // Overall ticket type limits
-    if (ticketType === "Standard+2") {
-      overallLimit = 200;
-      overallQuery = { ticketType: "Standard+2" };
-    } else if (ticketType === "Standard+3") {
-      overallLimit = 300;
-      overallQuery = { ticketType: "Standard+3" };
-    } else if (ticketType === "Standard+4" || ticketType === "Standard") {
-      // Some forms may use Standard for Std+4
-      overallLimit = 150;
-      overallQuery = { $or: [ { ticketType: "Standard+4" }, { ticketType: "Standard" } ] };
-    } else if (ticketType && typeof ticketType === 'string' && ticketType.startsWith("Doctor")) {
-      overallLimit = 30;
-      overallQuery = { ticketType: { $regex: /^Doctor/i } };
-    // } else if (ticketType && typeof ticketType === 'string' && ticketType.startsWith("International")) {
-    //   overallLimit = 50;
-    //   overallQuery = { ticketType: { $regex: /^International/i } };
-    } else if (ticketType === "Online") {
-      overallLimit = 500;
-      overallQuery = { ticketType: "Online" };
-    } else if (ticketType === "Basic") {
-      overallLimit = 300;
-      overallQuery = { ticketType: "Basic" };
-    } else if (ticketType === "Gala Add-On") {
-      // Optional: enforce a soft limit for Gala Add-On tickets if needed
-      // We'll rely on gala dinner limit below instead of a separate overall limit
-      overallLimit = null;
-      overallQuery = { ticketType: "Gala Add-On" };
-    }
-    
-    // Check overall ticket type limit
-    if (overallLimit !== null) {
-      // Count all tickets except rejected ones (pending and completed count towards limit)
-      const overallCount = await UserTicket.countDocuments({
-        ...overallQuery,
-        paymentStatus: { $ne: "rejected" }
-      });
-      if (overallCount >= overallLimit) {
-        return res.status(409).json({ message: "Tickets for this category are sold out." });
-      }
-    }
-    
-    // Internal member type limits
-    let internalLimit = null;
-    let internalQuery = {};
-    
-    if (subType === "Executive") {
-      // GIMSOC Executive & Subcommittee limit across all ticket types
-      internalLimit = 60;
-      internalQuery = { subType: "Executive" };
-    } else if (subType === "TSU") {
-      // TSU limit across all ticket types
-      internalLimit = 50;
-      internalQuery = { subType: "TSU" };
-    } else if (subType === "GEOMEDI") {
-      // GEOMEDI limit only on Standard+2
-      if (ticketType === "Standard+2") {
-        internalLimit = 30;
-        internalQuery = { subType: "GEOMEDI", ticketType: "Standard+2" };
-      }
-    }
-    
-    // Check internal member type limit
-    if (internalLimit !== null) {
-      // Count all tickets except rejected ones (pending and completed count towards limit)
-      const internalCount = await UserTicket.countDocuments({
-        ...internalQuery,
-        paymentStatus: { $ne: "rejected" }
-      });
-      if (internalCount >= internalLimit) {
-        let limitMessage = "";
-        if (subType === "Executive") {
-          limitMessage = "Executive & Subcommittee tickets are sold out.";
-        } else if (subType === "TSU") {
-          limitMessage = "TSU student tickets are sold out.";
-        } else if (subType === "GEOMEDI") {
-          limitMessage = "GEOMEDI student tickets for Standard+2 are sold out.";
-        }
-        return res.status(409).json({ message: limitMessage });
-      }
-    }
-    
-    // --- GALA DINNER LIMIT CHECK ---
+    if (Array.isArray(ticketType)) ticketType = ticketType[0];
+
     const galaDinner = req.body.galaDinner;
     const workshopPackage = req.body.workshopPackage;
-    
-    // Check if this is an all-inclusive doctor ticket (which automatically includes gala)
-    const isAllInclusiveDoctor = ticketType && typeof ticketType === 'string' && ticketType.includes("Doctor") && 
-                                (workshopPackage === "All-Inclusive" || 
-                                 (galaDinner && galaDinner.includes("Yes")));
-    
-    // For all-inclusive doctor tickets, automatically set gala dinner to "Yes"
+    // All-inclusive doctor tickets automatically include the gala dinner
+    const isAllInclusiveDoctor = typeof ticketType === 'string' && ticketType.includes("Doctor") &&
+      (workshopPackage === "All-Inclusive" || (galaDinner && galaDinner.includes("Yes")));
     if (isAllInclusiveDoctor && (!galaDinner || !galaDinner.includes("Yes"))) {
       finalGalaDinner = "Yes, I would like to attend the Gala Dinner (+40 GEL)";
-      console.log("🎭 Auto-including gala dinner for all-inclusive doctor ticket");
     }
-    
-    // For Gala Add-On tickets, always set gala dinner to Yes
     if (ticketType === "Gala Add-On") {
       finalGalaDinner = "Yes, I would like to attend the Gala Dinner (+40 GEL)";
     }
 
-    if (finalGalaDinner && finalGalaDinner.includes("Yes")) {
-      // Count all tickets with gala dinner selected (excluding rejected ones)
-      const galaCount = await UserTicket.countDocuments({
-        galaDinner: { $regex: /Yes/i },
-        paymentStatus: { $ne: "rejected" }
-      });
-      
-      const galaLimit = 150;
-      if (galaCount >= galaLimit) {
-        return res.status(409).json({ message: "Gala dinner tickets are sold out." });
-      }
-    }
-    
+    limitArgs = {
+      ticketType,
+      subType: req.body.subType,
+      wantsGala: !!(finalGalaDinner && String(finalGalaDinner).includes("Yes")),
+      email: req.body.email ? String(req.body.email).toLowerCase().trim() : null,
+    };
+    const refusal = await checkTicketLimits(limitArgs);
+    if (refusal) return res.status(refusal.status).json({ message: refusal.message });
   } catch (err) {
     console.error("❌ Error checking ticket limits:", err);
     return res.status(500).json({ message: "Error checking ticket limits." });
   }
-  
-  // --- EMAIL UNIQUENESS CHECK ---
-  try {
-    const email = req.body.email;
-    const emailLower = email ? email.toLowerCase().trim() : null;
-    console.log("🔍 Checking email uniqueness for:", emailLower);
-    
-    if (emailLower) {
-      // Check for existing non-rejected tickets (case-insensitive)
-      const existing = await UserTicket.findOne({ 
-        email: { $regex: new RegExp(`^${emailLower}$`, 'i') },
-        paymentStatus: { $ne: "rejected" }
-      });
-      
-      if (existing) {
-        console.log("❌ Email already exists:", emailLower);
-        return res.status(409).json({ message: "This email has already been used to book a ticket." });
-      }
-      
-      // Additional check for recent submissions (within last 30 seconds) to prevent duplicates
-      const recentSubmission = await UserTicket.findOne({
-        email: { $regex: new RegExp(`^${emailLower}$`, 'i') },
-        paymentStatus: { $ne: "rejected" },
-        createdAt: { $gte: new Date(Date.now() - 30000) } // Last 30 seconds
-      });
-      
-      if (recentSubmission) {
-        console.log("❌ Recent submission found for email:", emailLower);
-        return res.status(409).json({ message: "A ticket submission is already in progress. Please wait a moment and try again." });
-      }
-      
-      console.log("✅ Email uniqueness check passed for:", emailLower);
-    } else {
-      console.log("⚠️ No email provided for uniqueness check");
-    }
-  } catch (err) {
-    console.error("❌ Error checking email uniqueness:", err);
-    return res.status(500).json({ message: "Error checking email uniqueness." });
-  }
-  
+
   try {
     console.log("🎫 Ticket submission received:", {
       ticketType: req.body.ticketType,
@@ -479,8 +333,6 @@ router.post("/submit", ticketSubmissionRateLimit, upload.any(), async (req, res)
       isTsuStudent: req.body.isTsuStudent
     });
     
-    console.log("📋 Full request body:", req.body);
-    console.log("📋 Request headers:", req.headers);
     console.log("📁 Number of files received:", req.files ? req.files.length : 0);
     
     const filesMap = {};
@@ -782,13 +634,25 @@ router.post("/submit", ticketSubmissionRateLimit, upload.any(), async (req, res)
       hasFiles: !!newTicket.headshotUrl || !!newTicket.paymentProofUrl
     });
     
-    // Add timeout to prevent hanging
-    const savePromise = newTicket.save();
-    const timeoutPromise = new Promise((_, reject) => 
+    // Re-check caps and save atomically. withTransaction retries on write conflicts, so
+    // concurrent buyers for the last seats are serialised instead of all slipping through.
+    // Buyers competing for the same cap queue up in-process first, so they don't all open
+    // transactions at once and abort each other in a retry storm.
+    const savePromise = withKeys(saleLockKeys(limitArgs), () =>
+      mongoose.connection.transaction(async (session) => {
+        await acquireSaleLocks(limitArgs, session);
+        const refusal = await checkTicketLimits(limitArgs, session);
+        if (refusal) return refusal;
+        await newTicket.save({ session });
+        return null;
+      })
+    );
+    const timeoutPromise = new Promise((_, reject) =>
       setTimeout(() => reject(new Error('Database save timeout')), 10000)
     );
-    
-    await Promise.race([savePromise, timeoutPromise]);
+
+    const refusal = await Promise.race([savePromise, timeoutPromise]);
+    if (refusal) return res.status(refusal.status).json({ message: refusal.message });
     console.log("✅ Ticket saved successfully with ID:", newTicket._id);
     
     // Queue confirmation email for processing

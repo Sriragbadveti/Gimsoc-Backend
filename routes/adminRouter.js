@@ -179,72 +179,63 @@ router.get("/ticket-summary", adminAuthMiddleware, async (req, res) => {
     // Silent fetch - only log on errors
     
     // Get counts - pending and completed count towards limits, rejected don't
-    const summary = {
-      total: await UserTicket.countDocuments({ paymentStatus: { $ne: "rejected" } }),
-      pending: await UserTicket.countDocuments({ paymentStatus: "pending" }),
-      completed: await UserTicket.countDocuments({ paymentStatus: "completed" }),
-      rejected: await UserTicket.countDocuments({ paymentStatus: "rejected" }),
-      
-      // Ticket type breakdown (pending and completed count towards limits)
-      standardPlus2: await UserTicket.countDocuments({ 
+    // All counts are independent, so run them in parallel instead of one after another
+    const countKeys = ["total", "pending", "completed", "rejected", "standardPlus2", "standardPlus3", "standardPlus4", "doctor", "online", "basic", "executive", "tsu", "geomedi", "galaTickets", "galaAccessTickets"];
+    const countValues = await Promise.all([
+      UserTicket.countDocuments({ paymentStatus: { $ne: "rejected" } }),
+      UserTicket.countDocuments({ paymentStatus: "pending" }),
+      UserTicket.countDocuments({ paymentStatus: "completed" }),
+      UserTicket.countDocuments({ paymentStatus: "rejected" }),
+      UserTicket.countDocuments({ 
         ticketType: "Standard+2", 
         paymentStatus: { $ne: "rejected" } 
       }),
-      standardPlus3: await UserTicket.countDocuments({ 
+      UserTicket.countDocuments({ 
         ticketType: "Standard+3", 
         paymentStatus: { $ne: "rejected" }
       }),
-      standardPlus4: await UserTicket.countDocuments({ 
+      UserTicket.countDocuments({ 
         $or: [{ ticketType: "Standard+4" }, { ticketType: "Standard" }],
         paymentStatus: { $ne: "rejected" } 
       }),
-      doctor: await UserTicket.countDocuments({ 
+      UserTicket.countDocuments({ 
         ticketType: { $regex: /^Doctor/i }, 
         paymentStatus: { $ne: "rejected" } 
       }),
-      online: await UserTicket.countDocuments({ 
+      UserTicket.countDocuments({ 
         ticketType: "Online", 
         paymentStatus: { $ne: "rejected" } 
       }),
-      basic: await UserTicket.countDocuments({ 
+      UserTicket.countDocuments({ 
         ticketType: "Basic", 
         paymentStatus: { $ne: "rejected" } 
       }),
-      // international: await UserTicket.countDocuments({ 
-      //   ticketType: { $regex: /^International/i }, 
-      //   paymentStatus: { $ne: "rejected" } 
-      // }),
-      
-      // Subtype breakdown (pending and completed count towards limits)
-      executive: await UserTicket.countDocuments({ 
+      UserTicket.countDocuments({ 
         subType: "Executive", 
         paymentStatus: { $ne: "rejected" } 
       }),
-      tsu: await UserTicket.countDocuments({ 
+      UserTicket.countDocuments({ 
         subType: "TSU", 
         paymentStatus: { $ne: "rejected" } 
       }),
-      geomedi: await UserTicket.countDocuments({ 
+      UserTicket.countDocuments({ 
         subType: "GEOMEDI", 
         ticketType: "Standard+2",
         paymentStatus: { $ne: "rejected" } 
       }),
-      
-      // Gala dinner counts (including automatic inclusions for all-inclusive doctor tickets)
-      galaTickets: await UserTicket.countDocuments({ 
+      UserTicket.countDocuments({ 
         galaDinner: { $regex: /Yes/i },
         paymentStatus: { $ne: "rejected" } 
       }),
-      galaLimit: 150,
-      
-      // Gala Access ticket counts (separate from dinner tickets)
-      galaAccessTickets: await UserTicket.countDocuments({ 
+      UserTicket.countDocuments({ 
         ticketType: "Gala Add-On",
         paymentStatus: { $ne: "rejected" } 
       }),
-      galaAccessLimit: 100
-    };
-    
+    ]);
+    const summary = Object.fromEntries(countKeys.map((k, i) => [k, countValues[i]]));
+    summary.galaLimit = 150;
+    summary.galaAccessLimit = 100;
+
     // Silent response - no summary logging
     return res.status(200).json(summary);
   } catch (err) {

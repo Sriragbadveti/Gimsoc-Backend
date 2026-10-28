@@ -1,0 +1,95 @@
+{
+  "label": "baseline",
+  "seededTickets": 1200,
+  "workshopRace": {
+    "attendees": 150,
+    "capacity": 40,
+    "statusCodes": {
+      "200": 5,
+      "500": 145
+    },
+    "seatsReserved": {
+      "T1-A": 5,
+      "T2-D": 5
+    },
+    "selectionDocs": 5,
+    "latencyMs": {
+      "n": 150,
+      "p50": 1211,
+      "p95": 1632,
+      "p99": 1692,
+      "max": 1693
+    },
+    "selectionsHoldingT1A": 5
+  },
+  "ticketRace": {
+    "cap": 200,
+    "before": 186,
+    "concurrentBuyers": 80,
+    "after": 266,
+    "oversold": 66,
+    "statusCodes": {
+      "201": 80
+    },
+    "latencyMs": {
+      "n": 80,
+      "p50": 812,
+      "p95": 866,
+      "p99": 869,
+      "max": 869
+    }
+  },
+  "duplicateClick": {
+    "attempts": 10,
+    "ticketsCreated": 6,
+    "statusCodes": {
+      "201": 6,
+      "409": 4
+    }
+  },
+  "load": {
+    "galaAvailability_c100": {
+      "connections": 100,
+      "rps": 435,
+      "p50": 220,
+      "p97_5": 383,
+      "p99": 413,
+      "errors": 0,
+      "non2xx": 0,
+      "timeouts": 0
+    },
+    "workshopSessions_c100": {
+      "connections": 100,
+      "rps": 328,
+      "p50": 260,
+      "p97_5": 383,
+      "p99": 2361,
+      "errors": 0,
+      "non2xx": 0,
+      "timeouts": 0
+    },
+    "adminTicketSummary_c20": {
+      "connections": 20,
+      "rps": 52,
+      "p50": 382,
+      "p97_5": 561,
+      "p99": 602,
+      "errors": 0,
+      "non2xx": 0,
+      "timeouts": 0
+    },
+    "adminGetAllTickets_c10": {
+      "connections": 10,
+      "rps": 25,
+      "p50": 389,
+      "p97_5": 573,
+      "p99": 619,
+      "errors": 0,
+      "non2xx": 0,
+      "timeouts": 0
+    }
+  },
+  "getAllTicketsPayloadKB": 594,
+  "getAllTicketsLeaksDashboardPassword": false,
+  "corsReflectsAnyOrigin": false
+}

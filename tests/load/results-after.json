@@ -1,0 +1,97 @@
+{
+  "label": "after",
+  "seededTickets": 1200,
+  "workshopRace": {
+    "attendees": 150,
+    "capacity": 40,
+    "statusCodes": {
+      "200": 40,
+      "409": 110
+    },
+    "seatsReserved": {
+      "T1-A": 40,
+      "T2-D": 40
+    },
+    "selectionDocs": 40,
+    "latencyMs": {
+      "n": 150,
+      "p50": 1219,
+      "p95": 1453,
+      "p99": 1489,
+      "max": 1489
+    },
+    "selectionsHoldingT1A": 40
+  },
+  "ticketRace": {
+    "cap": 200,
+    "before": 186,
+    "concurrentBuyers": 80,
+    "after": 200,
+    "oversold": 0,
+    "statusCodes": {
+      "201": 14,
+      "409": 66
+    },
+    "latencyMs": {
+      "n": 80,
+      "p50": 1147,
+      "p95": 1705,
+      "p99": 1740,
+      "max": 1740
+    },
+    "sample": "{\"message\":\"Tickets for this category are sold out.\"}"
+  },
+  "duplicateClick": {
+    "attempts": 10,
+    "ticketsCreated": 1,
+    "statusCodes": {
+      "201": 1,
+      "409": 9
+    }
+  },
+  "load": {
+    "galaAvailability_c100": {
+      "connections": 100,
+      "rps": 2272,
+      "p50": 39,
+      "p97_5": 85,
+      "p99": 115,
+      "errors": 0,
+      "non2xx": 0,
+      "timeouts": 0
+    },
+    "workshopSessions_c100": {
+      "connections": 100,
+      "rps": 305,
+      "p50": 281,
+      "p97_5": 389,
+      "p99": 2958,
+      "errors": 0,
+      "non2xx": 0,
+      "timeouts": 0
+    },
+    "adminTicketSummary_c20": {
+      "connections": 20,
+      "rps": 64,
+      "p50": 297,
+      "p97_5": 504,
+      "p99": 759,
+      "errors": 0,
+      "non2xx": 0,
+      "timeouts": 0
+    },
+    "adminGetAllTickets_c10": {
+      "connections": 10,
+      "rps": 25,
+      "p50": 381,
+      "p97_5": 564,
+      "p99": 594,
+      "errors": 0,
+      "non2xx": 0,
+      "timeouts": 0
+    }
+  },
+  "getAllTicketsPayloadKB": 550,
+  "getAllTicketsLeaksDashboardPassword": false,
+  "corsReflectsAnyOrigin": false
+}
