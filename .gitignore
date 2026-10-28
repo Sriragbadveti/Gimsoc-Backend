@@ -42,3 +42,4 @@ build/
 # Coverage reports (if testing added later)
 coverage/google-credentials.json
 google-credentials.json
+tests/load/*.log

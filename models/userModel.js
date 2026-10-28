@@ -77,4 +77,10 @@ const userTicketSchema = new mongoose.Schema({
   },
 });
 
+// Indexes for the hot queries: sold-out checks, email lookups, admin listing (newest first)
+userTicketSchema.index({ ticketType: 1, paymentStatus: 1 });
+userTicketSchema.index({ subType: 1, paymentStatus: 1 });
+userTicketSchema.index({ email: 1 });
+userTicketSchema.index({ createdAt: -1 });
+
 module.exports = mongoose.model("UserTicket", userTicketSchema);

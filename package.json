@@ -5,7 +5,9 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "nodemon index.js",
-    "seed:workshops": "node routes/seedWorkshops.js"
+    "seed:workshops": "node routes/seedWorkshops.js",
+    "test:load": "node tests/load/bench.js . run",
+    "test:functional": "node tests/load/functional.js"
   },
   "keywords": [],
   "author": "",
@@ -34,5 +36,8 @@
     "resend": "^4.7.0",
     "streamifier": "^0.1.1",
     "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "autocannon": "^8.0.0"
   }
 }
